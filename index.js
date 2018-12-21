@@ -1,4 +1,6 @@
 const express = require('express');
+const config = require('./config');
+const db = config.database;
 const app = express();
 
 app.get('/send', (req, res) => {
