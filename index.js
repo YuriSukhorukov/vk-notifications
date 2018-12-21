@@ -1,6 +1,7 @@
 let express = require('express');
 let config = require('./config');
 let logger = require('./modules/winston.js');
+let VK = require('./mock/vk-api');
 let app = express();
 
 app.get('/send', (req, res) => {
