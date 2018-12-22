@@ -72,12 +72,12 @@ async function insertMock(){
 
 
 
-
-
-function sendNotification(){
+function sendNotification(message){
 	page = 0;
+	logger.info(`Notification started with message: ${JSON.stringify(message)}`);
 	mongoClient.connect((err, client)=>{
 		db = client.db(dbname);
+		db.collection('received').drop();
 		sendLoop();
 		
 		// insertMock();
@@ -91,14 +91,16 @@ async function sendLoop(){
 	// console.log(newPlayers)
 
 	let count = await db.collection('players').countDocuments();
-	console.log('count:', count);
-	let count1 = await db.collection('received').countDocuments();
-	console.log('count1:', count1);
 
 	let delta = count - page * nPerPage;
 	
-	if(delta <= 0) 
+	if(delta <= 0){
+		let count1 = await db.collection('received').countDocuments();
+		let total = count / 100;
+		let progress = total * count1;
+		logger.info(`Notification sending stopped`);
 		return;
+	}
 
 	let playersIds;
 	if(delta > nPerPage)
@@ -106,9 +108,8 @@ async function sendLoop(){
 	else
 		playersIds = await db.collection('players').find().skip(page * nPerPage).limit(delta).toArray();
 
-	console.log('delta', delta);
+	console.log('delta', delta, page);
 
-	console.log(page);
 	// let playersIds = await db.collection('players').find().skip(page * nPerPage).limit(nPerPage).toArray();
 
 	let _qr = playersIds.map(element => {return element.id});
@@ -126,6 +127,7 @@ async function sendLoop(){
 	.then(response => {
 		(async()=>{
 			page++;
+			logger.info(`Successful notification for: ${JSON.stringify(response)}`);
 			let insertedReceived = await db.collection('received').insertMany(response);
 			console.log('SENDED')
 			// setTimeout(sendLoop, 5000);
@@ -135,10 +137,13 @@ async function sendLoop(){
 		// requestsPerSecond++;
 		if(err.message == 'Invalid data'){
 			page++;
-			console.log('Invalid data')
+			// console.log('Invalid data')
+			logger.error('Invalid data');
 		}else if(err.message == 'Too frequently'){
-			console.log('Too frequently')
+			// console.log('Too frequently')
+			logger.error('Too frequently');
 		}else if(err.message == 'Server fatal error'){
+			logger.error('Server fatal error');
 			return;
 			// save state
 			// process.exit(0);
@@ -148,7 +153,7 @@ async function sendLoop(){
 }
 
 
-sendNotification();
+sendNotification('hi!');
 
 
 async function removeMatchesWhatWhere(findedPlayersInReceived, playersIds){
@@ -278,7 +283,7 @@ async function removeMatchesWhatWhere(findedPlayersInReceived, playersIds){
 
 app.get('/send', (req, res) => {
 	let message = req.query.template;
-	sendNotification();
+	sendNotification(JSON.stringify(message));
 	// mongo.getIds('players').then(ids=>{
 	// 	VK.sendNotification(ids, message)
 	// 		.then(response=>{
