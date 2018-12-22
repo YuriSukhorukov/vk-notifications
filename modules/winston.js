@@ -1,5 +1,5 @@
 let winston = require('winston');
-let config = require('./../config.js');
+let config = require('./../config').winston;
 
 let logger = winston.createLogger({
   format: winston.format.combine(
@@ -10,7 +10,7 @@ let logger = winston.createLogger({
   ),
   transports: [
   	new winston.transports.Console(),
-  	new winston.transports.File(config.winston.file)
+  	new winston.transports.File(config.file)
   ]
 });
 

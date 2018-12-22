@@ -1,6 +1,7 @@
 let express = require('express');
 let config = require('./config');
-let logger = require('./modules/winston.js');
+let logger = require('./modules/winston');
+let mongo = require('./modules/mongo')
 let VK = require('./mock/vk-api');
 let app = express();
 
