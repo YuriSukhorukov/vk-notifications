@@ -1,5 +1,5 @@
 let express = require('express');
-let config = require('./config');
+let config = require('./config').app;
 let logger = require('./modules/winston');
 let mongo = require('./modules/mongo')
 let VK = require('./mock/vk-api');
@@ -10,11 +10,11 @@ app.get('/send', (req, res) => {
 
 	mongo.getIds('players').then(ids=>{
 		VK.sendNotification(ids, message)
-			.then(res=>{
-				logger.info(`successful notification for: ${JSON.stringify(res)}`)
+			.then(response=>{
+				logger.info(`successful notification for: ${JSON.stringify(response)}`);
 			})
 			.catch(error=>{
-				logger.error(error)
+				logger.error(error);
 			});
 	})
 });
