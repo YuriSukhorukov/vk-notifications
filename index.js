@@ -60,18 +60,58 @@ let db = {};
 
 // });
 
+async function insertMock(){
+	let datas = [];
+	for(let i = 0; i < 1110; i++){
+		let _data = {id: i, first_name: 'Ivan'};
+		datas.push(_data);
+	}
+
+	return await db.collection('players').insertMany(datas);
+}
+
+
+
+
 
 function sendNotification(){
+	page = 0;
 	mongoClient.connect((err, client)=>{
 		db = client.db(dbname);
 		sendLoop();
+		
+		// insertMock();
 	});
 }
 
 async function sendLoop(){
 	// db.collection('received').drop();
+	// db.collection('players').drop();
+	// let newPlayers = await insertMock();
+	// console.log(newPlayers)
 
-	let playersIds = await db.collection('players').find().skip(page * nPerPage).limit(nPerPage).toArray();
+	let count = await db.collection('players').countDocuments();
+	console.log('count:', count);
+	let count1 = await db.collection('received').countDocuments();
+	console.log('count1:', count1);
+
+	let delta = count;
+	// if(count < page * nPerPage)
+		delta = count - page * nPerPage;
+	
+	if(delta <= 0) 
+		return;
+
+	let playersIds;
+	if(delta > nPerPage)
+		playersIds = await db.collection('players').find().skip(page * nPerPage).limit(nPerPage).toArray();
+	else
+		playersIds = await db.collection('players').find().skip(page * nPerPage).limit(delta).toArray();
+
+	console.log('delta', delta);
+
+	console.log(page);
+	// let playersIds = await db.collection('players').find().skip(page * nPerPage).limit(nPerPage).toArray();
 
 	let _qr = playersIds.map(element => {return element.id});
 	let query = { id: { $in: _qr } };
@@ -90,17 +130,18 @@ async function sendLoop(){
 			page++;
 			let insertedReceived = await db.collection('received').insertMany(response);
 			console.log('SENDED')
-			console.log(insertedReceived)
+			// setTimeout(sendLoop, 2000);
+			// console.log(insertedReceived)
 		})()
 	}).catch(err=>{
 		// requestsPerSecond++;
 		if(err.message == 'Invalid data'){
 			page++;
 			console.log('Invalid data')
-			// setTimeout(sendNotification, 1000);
+			// setTimeout(sendNotification, 2000);
 		}else if(err.message == 'Too frequently'){
 			console.log('Too frequently')
-			// setTimeout(sendNotification, 1000);
+			// setTimeout(sendNotification, 2000);
 		}else if(err.message == 'Server fatal error'){
 			// save state
 			// process.exit(0);
@@ -109,11 +150,7 @@ async function sendLoop(){
 		// console.log(err);
 		// logger.error(err);
 	})
-
-	// let a = await db.collection('received').countDocuments();
-
-	// console.log(a);
-	setTimeout(sendLoop, 10);
+	setTimeout(sendLoop, 200);
 }
 
 
@@ -248,7 +285,7 @@ async function removeMatchesWhatWhere(findedPlayersInReceived, playersIds){
 
 app.get('/send', (req, res) => {
 	let message = req.query.template;
-
+	sendNotification();
 	// mongo.getIds('players').then(ids=>{
 	// 	VK.sendNotification(ids, message)
 	// 		.then(response=>{
