@@ -2,6 +2,13 @@ const config = {
 	app: {
 		port: 3000
 	},
+	vk: {
+		notice: {
+			maxUsersIdsCount: 100,
+			maxMessageLength: 254,
+			maxRequestsRate: 3
+		}
+	},
 	mongo: {
 		development: {
 			host: 'mongodb://localhost:27017/',
