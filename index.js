@@ -5,49 +5,79 @@ let mongo = require('./modules/mongo')
 let VK = require('./mock/vk-api');
 let app = express();
 
+// получаем следующие 100 идентификаторов из players
+// проверяем, есть ли они в бд идентификаторов, получивших сообщение
+// идентификаторы, находящиеся в бд получивших исключаем из списка для отправки
+// получаем из бд дополнительные N id для отправки (n - количествово удаленных)
+// повторяем проверку
+// отправили сообщение
+// получили идентификаторы, которым успешно отправили сообщение
+// записываем их в бд идентификаторов получивших сообщение
+// повторяем цикл
 
-let page = 0;
-let nPerPage = 50;
-let nPerPageDelta = 0;
-function updatePage(delta){
-	if(nPerPageDelta + delta > nPerPage){
-		nPerPageDelta = nPerPage - nPerPageDelta
+// фуекция цикличной отправки
+// вызывает сама себя
+// отправляет запросы не чаще чем N раз в секунду
+// отправляет N записей за раз
+
+let requestsPerSecond = 0;
+let maxRequestPerSecond = 3;
+
+function resetRequestNumber () {
+	requestsPerSecond = 0;
+	setTimeout(resetRequestNumber, 1000);
+}
+
+resetRequestNumber();
+
+async function removeMatchesWhereWhat(findedPlayersInReceived, playersIds){
+	for(let i = 0; i < findedPlayersInReceived.length; i++){
+		for(let j = 0; j < playersIds.length; j++){
+			if(findedPlayersInReceived[i].id == playersIds[j].id){
+				playersIds.splice(j, 1);
+			}
+		}
 	}
 }
+
+async function saveReceivedIds(ids){
+	return await mongo.insert(response, 'received');
+}
+
+async function getPlayersIds(){
+	return await mongo.getIdsFrom(page, nPerPage, 'players');
+}
+
+async function getReceivedIds(){
+	return await mongo.getIdsFrom(page, nPerPage, 'players');
+}
+
+let page = 0;
+let nPerPage = 100;
 
 (async()=>{
 	// получение данных из бд
 	// mongo.clear('players');
 	// mongo.clear('received');
 	// let count = await mongo.getCountFrom('received');
-	let playersIds = await mongo.getIdsFrom(page, nPerPage, 'players');
+	
 	// let receivedIds = await mongo.getIdsFrom(0, 10, 'received');
 	// let insertedPlayers = await mongo.insertMockTo(1000000, 'players');
 	// let insertedReceived = await mongo.insertMockTo(10, 'received');
-	let findedPlayersInReceived = await mongo.find(playersIds, 'received');
+
 	// console.log(count);
-	console.log(playersIds);
 	// console.log(insertedPlayers);
 	// console.log(receivedIds);
 	// console.log(inserted);
-	console.log(findedPlayersInReceived);
-
-
+	
+	let playersIds = await mongo.getIdsFrom(page, nPerPage, 'players');
+	let findedPlayersInReceived = await mongo.find(playersIds, 'received');
+	console.log('playersIds: ', playersIds);
+	console.log('findedPlayersInReceived', findedPlayersInReceived);
 	// исключение из списка рассылки тех, тко присутствует в бд получивших
-	let idsNotification = [];
-	let deletedCount = 0;
-	for(let i = 0; i < findedPlayersInReceived.length; i++){
-		for(let j = 0; j < playersIds.length; j++){
-			if(findedPlayersInReceived[i].id == playersIds[j].id){
-				playersIds.splice(j, 1);
-				deletedCount++;
-			}
-		}
-	}
-	console.log(playersIds);
-	console.log(deletedCount);
-
-
+	removeMatchesWhereWhat(findedPlayersInReceived, playersIds);
+	console.log('after clear playersIds: ', playersIds);
+	
 
 	// отправка сообщений
 	VK.sendNotification(playersIds, 'message')
@@ -67,17 +97,6 @@ function updatePage(delta){
 		})
 })()
 
-// let page = 0;
-// let nPerPage = 5;
-// let interval = 3000;
-// function getIds(){
-// 	mongo.getIds(page, nPerPage).then(res=>{
-// 		console.log(res);
-// 		page++;
-// 		setTimeout(getIds, interval);
-// 	}).catch(err=>{console.log(err)});
-// }
-// getIds();
 
 app.get('/send', (req, res) => {
 	let message = req.query.template;
