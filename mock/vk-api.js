@@ -17,18 +17,25 @@ function resetRequestNumber(){
 
 const VK = {
 	async sendNotification(ids = [], text = ''){
+		console.log('Send notification...');
 		console.log(ids)
 		if(requestNumber >= maxRequestsRate) {
 			throw new Error('Too frequently');
+			// повторить запрос
 		}
-		if(ids.length > maxUsersIdsCount || text > maxMessageLength) {
+		if(ids.length > maxUsersIdsCount || text > maxMessageLength || ids.length == 0) {
 			throw new Error('Invalid data');
 			return;
 		}
 		if(false) {
 			throw new Error('Server fatal error');
+			// остановить отправку
 			return;
 		}
+
+		ids = ids.map(element=>{
+			return {id:element.id};
+		})
 
 		requestNumber++;
 		resetRequestNumber();
