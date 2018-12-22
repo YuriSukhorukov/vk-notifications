@@ -16,4 +16,9 @@ mongoClient.connect(function(err, client){
 	});
 });
 
+async function getIds(){
+	let ids = [{id:'1'}, {id:'2'}, {id:'3'}];
+	return ids;
+}
+
 module.exports = MongoClient;

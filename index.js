@@ -7,6 +7,16 @@ let app = express();
 
 app.get('/send', (req, res) => {
 	let message = req.query.template;
+
+	mongo.getIds('players').then(ids=>{
+		VK.sendNotification(ids, message)
+			.then(res=>{
+				logger.info(`successful notification for: ${JSON.stringify(res)}`)
+			})
+			.catch(error=>{
+				logger.error(error)
+			});
+	})
 });
 app.post('/send', (req, res) => {
 	let message = req.query.template;
