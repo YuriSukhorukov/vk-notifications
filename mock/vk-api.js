@@ -17,24 +17,23 @@ function resetRequestNumber(){
 
 const VK = {
 	async sendNotification(ids = [], text = ''){
+		console.log(ids)
 		if(requestNumber >= maxRequestsRate) {
-			// console.error('Too frequently');
-			return;
+			throw new Error('Too frequently');
 		}
 		if(ids.length > maxUsersIdsCount || text > maxMessageLength) {
-			// console.error('Invalid data');
+			throw new Error('Invalid data');
 			return;
 		}
 		if(false) {
-			// console.error('Server fatal error');
+			throw new Error('Server fatal error');
 			return;
 		}
 
 		requestNumber++;
 		resetRequestNumber();
 
-		let response = [{id:''}, {id:''}, {id:''}];
-		return response;
+		return ids;
 	}
 }
 
