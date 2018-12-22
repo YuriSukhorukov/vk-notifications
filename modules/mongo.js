@@ -8,17 +8,19 @@ const dbcollection = 'players';
 const data = {id: 1, first_name: 'Ivan'};
 const query = {name: 'Ivan'};
 
-mongoClient.connect(function(err, client){
-  if(err) return console.log(err);
-   client.db(dbname).collection(dbcollection).updateMany(query, {$set: data}, {upsert: true}, (res) => {
-   	console.log(res);
-		client.close();
-	});
-});
+const mongo = {
+	async getIds(collection){
+		mongoClient.connect(function(err, client){
+		  if(err) return console.log(err);
+		   client.db(dbname).collection(dbcollection).updateMany(query, {$set: data}, {upsert: true}, (res) => {
+		   	console.log(res);
+				client.close();
+			});
+		});
 
-async function getIds(){
-	let ids = [{id:'1'}, {id:'2'}, {id:'3'}];
-	return ids;
+		let ids = [{id:'1'}, {id:'2'}, {id:'3'}];
+		return ids;
+	}
 }
 
-module.exports = MongoClient;
+module.exports = mongo;
