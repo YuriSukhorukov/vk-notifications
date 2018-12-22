@@ -95,9 +95,7 @@ async function sendLoop(){
 	let count1 = await db.collection('received').countDocuments();
 	console.log('count1:', count1);
 
-	let delta = count;
-	// if(count < page * nPerPage)
-		delta = count - page * nPerPage;
+	let delta = count - page * nPerPage;
 	
 	if(delta <= 0) 
 		return;
@@ -130,7 +128,7 @@ async function sendLoop(){
 			page++;
 			let insertedReceived = await db.collection('received').insertMany(response);
 			console.log('SENDED')
-			// setTimeout(sendLoop, 2000);
+			// setTimeout(sendLoop, 5000);
 			// console.log(insertedReceived)
 		})()
 	}).catch(err=>{
@@ -138,19 +136,15 @@ async function sendLoop(){
 		if(err.message == 'Invalid data'){
 			page++;
 			console.log('Invalid data')
-			// setTimeout(sendNotification, 2000);
 		}else if(err.message == 'Too frequently'){
 			console.log('Too frequently')
-			// setTimeout(sendNotification, 2000);
 		}else if(err.message == 'Server fatal error'){
+			return;
 			// save state
 			// process.exit(0);
 		}
-
-		// console.log(err);
-		// logger.error(err);
 	})
-	setTimeout(sendLoop, 200);
+	setTimeout(sendLoop, 100);
 }
 
 
@@ -162,7 +156,6 @@ async function removeMatchesWhatWhere(findedPlayersInReceived, playersIds){
 		for(let j = 0; j < playersIds.length; j++){
 			if(findedPlayersInReceived[i].id == playersIds[j].id){
 				playersIds.splice(j, 1);
-				// console.log(i,j)
 			}
 		}
 	}
