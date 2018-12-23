@@ -1,35 +1,31 @@
 let express = require('express');
-let config = require('./config').app;
-let logger = require('./modules/winston');
 let VK = require('./mock/vk-api');
 let state = require('./modules/state');
-let repository = require('./modules/mongo');
+let logger = require('./modules/winston');
+let repository = require('./modules/repository');
 let TimeInterval = require('./modules/time-interval');
+const {port} = require('./config').app;
+const states = require('./config').states;
+
 let app = express();
 
-const MongoClient = require('mongodb').MongoClient;
-// const {host, dbname} = require('./config').mongo.development;
-const {SENDING, IDLE} = require('./config').states;
-// const mongoClient = new MongoClient(host, { useNewUrlParser: true });
-
-let db = {};
 let page = 0;
 let nPerPage = 100;
 
 let sendingInterval = new TimeInterval(350, 1000);
 
-state.connect().then(()=>{
-	// state.clear();
-	state.load().then(res=>{
-		console.log(res)
-		if(state.status == SENDING)
+state.connect().then(() => {
+	state.load().then(res => {
+		if(state.status == states.SENDING)
 			sendNotification(state.msg);
+	}).catch(err => {
+		state.save({ status: states.IDLE, msg: '' });
 	})
 })
 
 async function sendNotification(message){
 	page = 0;
-	logger.info(`Notification started with message: ${message}`);
+	logger.info(`Notification started with message: ${ message }`);
 	// mongoClient.connect((err, client)=>{
 	// 	db = client.db(dbname);
 	// 	db.collection('received').drop();
@@ -40,26 +36,29 @@ async function sendNotification(message){
 	// });
 	
 	await repository.connect();
-	await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
-	state.save({status: SENDING, msg: message});
+	// TODO не очищать, в случае остановки сервера в результате падения
+	if(state.status == states.IDLE)
+		await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
+	await state.save({ status: states.SENDING, msg: message });
 	await sendLoop(message);
 }
 
 async function sendLoop(message){
+	// TODO исправить баг с сообщением
 	console.log('...data', message);
 	// db.collection('received').drop();
 	// db.collection('players').drop();
 	// let newPlayers = await insertMock();
 	// console.log(newPlayers);
 
-	let count = await repository.getPlayersIdsCount();
-	let delta = count - page * nPerPage;
+	let playersCount = await repository.getPlayersIdsCount();
+	let delta = playersCount - page * nPerPage;
 	
 	if(delta <= 0){
-		logger.info(`Notification sending complete`);
 		page = 0;
-		await state.save({status: IDLE, msg: ''});
+		await state.save({status: states.IDLE, msg: ''});
 		await repository.disconnect();
+		logger.info(`Notification sending complete`);
 		return;
 	}
 
@@ -71,22 +70,23 @@ async function sendLoop(message){
 
 	let playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
 
-	console.log('delta', delta, page)
+	console.log('delta', delta, page);
 	
 	await repository.subtractReceivedFromPlayers(playersIds);
 
 	VK.sendNotification(playersIds, message)
 	.then(response => {
-		(async()=>{
+		(async () => {
 			page++;
 			logger.info(`Successful notification for: ${JSON.stringify(response)}`);
 			await repository.saveReceivedIds(response);
 			sendingInterval.fast();
-			console.log('SENDED')
+			console.log('SENDED');
 		})()
-	}).catch(err=>{
+	}).catch( err => {
 		if(err.message == 'Invalid data'){
 			page++;
+			sendingInterval.faster();
 			logger.error('Invalid data');
 		}else if(err.message == 'Too frequently'){
 			sendingInterval.slow();
@@ -119,13 +119,15 @@ async function sendLoop(message){
 
 app.get('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
+	state.save({status: states.IDLE, msg: message});
 	sendNotification(message);
 });
 app.post('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
+	state.save({status: states.IDLE, msg: message});
 	sendNotification(message);
 });
 
-app.listen(config.port, () => {
+app.listen(port, () => {
   logger.info('Vk notifications service listening on port 3000!');
 });
