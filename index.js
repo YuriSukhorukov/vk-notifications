@@ -11,14 +11,14 @@ let app = express();
 
 let page = 0;
 let nPerPage = 100;
-
-let sendingInterval = new TimeInterval(1000, 1000);
+ 
+let sendingInterval = new TimeInterval(350, 1000);
 
 state.connect().then(() => {
 	state.load().then(res => {
 		console.log(res)
 		if(state.status == states.SENDING){
-			message = state.msg;
+			// message = state.msg;
 			sendNotification(state.msg, false);
 		}
 	}).catch(err => {
@@ -27,12 +27,12 @@ state.connect().then(() => {
 })
 
 async function sendNotification(message, isNewNotice){
-	console.log('! ', message)
-	page = 0;
-	logger.info(`Notification started with message: ${ message }`);
-	
 	await repository.connect();
-	// TODO не очищать, в случае остановки сервера в результате падения
+	page = 0;
+
+	console.log('! ', message)
+	logger.info(`Notification started with message: ${ message }`);
+
 	if(isNewNotice === true){
 		let receivedIdsCount = await repository.getReceivedIdsCount();
 		if(receivedIdsCount > 0)
@@ -44,7 +44,7 @@ async function sendNotification(message, isNewNotice){
 
 async function sendLoop(){
 	// TODO исправить баг с сообщением
-	console.log('...data', message);
+	console.log('...data', state.msg);
 	// db.collection('received').drop();
 	// db.collection('players').drop();
 	// let newPlayers = await insertMock();
@@ -72,7 +72,7 @@ async function sendLoop(){
 	
 	await repository.subtractReceivedFromPlayers(playersIds);
 
-	VK.sendNotification(playersIds, message)
+	VK.sendNotification(playersIds, state.msg)
 	.then(response => {
 		(async () => {
 			page++;
@@ -115,16 +115,12 @@ async function sendLoop(){
 // отправляет запросы не чаще чем N раз в секунду
 // отправляет N записей за раз
 
-let message = '';
-
 app.get('/send', (req, res) => {
-	message = JSON.stringify(req.query.template);
-	// state.save({status: states.IDLE, msg: message});
+	let message = JSON.stringify(req.query.template);
 	sendNotification(message, true);
 });
 app.post('/send', (req, res) => {
-	message = JSON.stringify(req.query.template);
-	// state.save({status: states.IDLE, msg: message});
+	let message = JSON.stringify(req.query.template);
 	sendNotification(message, true);
 });
 
