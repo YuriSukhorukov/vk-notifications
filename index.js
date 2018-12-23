@@ -11,6 +11,7 @@ let app = express();
 
 let page = 0;
 let nPerPage = 100;
+let playersIds = [];
  
 let sendingInterval = new TimeInterval(400, 1000);
 
@@ -21,132 +22,53 @@ state.connect().then(() => {
 		if(state.status == states.SENDING || state.status == states.ERROR){
 			notice.state = sending;
 			notice.send();
-			// sendNotification(state.msg, false);
 		}
 	}).catch(err => {
 		state.save({ status: states.IDLE, msg: '' });
 	})
 })
 
-// точка входа - один раз
-// обработка данных - несколько раз
-// 
-
-// async function sendNotification(message = '', isNewNotice = true){
-// 	br = false;
-
-// 	await repository.connect();
-// 	if(isNewNotice === true)
-// 		await repository.clearReceivedIds();
-
-// 	page = 0;
-
-// 	console.log('! ', message)
-// 	logger.info(`Notification started with message: ${ message }`);
-
-// 	await state.save({ status: states.SENDING, msg: message});
-// 	await sendLoop(message);
-// }
-// let br = false;
-// async function sendLoop(){
-// 	if(br === true)
-// 		return;
-// 	console.log('...data', state.msg);
-// 	// db.collection('received').drop();
-// 	// db.collection('players').drop();
-// 	// let newPlayers = await insertMock();
-
-// 	let playersCount = await repository.getPlayersIdsCount();
-// 	let delta = playersCount - page * nPerPage
-	
-// 	if(delta <= 0){
-// 		page = 0;
-// 		await state.save({status: states.IDLE, msg: ''});
-// 		await repository.disconnect();
-// 		logger.info(`Notification sending complete`);
-// 		return;
-// 	}
-
-// 	let limit = 0;
-// 	if(delta > nPerPage)
-// 		limit = nPerPage;
-// 	else
-// 		limit = delta;
-
-// 	let playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
-
-// 	console.log('delta', delta, page);
-	
-// 	await repository.subtractReceivedFromPlayers(playersIds);
-
-// 	if(playersIds.length == 0){
-// 		page++;
-// 		setImmediate(sendLoop);
-// 		return;
-// 	}
-
-// 	VK.sendNotification(playersIds, state.msg)
-// 	.then(response => {
-// 		(async () => {
-// 			page++;
-// 			logger.info(`Successful notification for: ${JSON.stringify(response)}`);
-// 			await repository.saveReceivedIds(response);
-// 			sendingInterval.fast();
-// 			console.log('SENDED');
-// 		})()
-// 	}).catch( err => {
-// 		if(err.message == 'Invalid data'){
-// 			page++;
-// 			sendingInterval.slow();
-// 			logger.error('Invalid data');
-// 		}else if(err.message == 'Too frequently'){
-// 			sendingInterval.slow();
-// 			logger.error('Too frequently');
-// 		}else if(err.message == 'Server fatal error'){
-// 			logger.error('Server fatal error');
-// 			state.save({status: states.ERROR, msg: ''});
-// 			br = true;
-// 			return;
-// 		}
-// 	})
-// 	setTimeout(sendLoop, sendingInterval.time);
-// }
-
 
 const idle = {
 	async send() {
-		console.log('connect');
+		console.log('idle');
+	}
+}
+
+const end = {
+	async send() {
+		logger.info(`Notification sending complete`);
+
+		page = 0;
+		await state.save({status: states.IDLE, msg: ''});
 	}
 }
 
 const connect = {
 	async send () {
-		console.log('connect');
-
-		// await repository.connect();
 		logger.info(`Notification started with message: ${ state.msg }`);
-		let receivedIdsCount = await repository.getReceivedIdsCount();
-		// await state.save({ status: states.SENDING, msg: state.msg});
-
+		
 		notice.state = clearRecieved;
 		notice.send();
 	}
 }
 
-let playersIds = [];
+const clearRecieved = {
+	async send(){
+		await repository.clearReceivedIds();
+		notice.state = processIds;
+		notice.send();
+	}
+}
 
 const processIds = {
 	async send () {
-		console.log('sending');
-		playersIds.splice(0);
 		let playersCount = await repository.getPlayersIdsCount();
 		let delta = playersCount - page * nPerPage
 
 		if(delta <= 0){
-			page = 0;
-			await state.save({status: states.IDLE, msg: ''});
-			// await repository.disconnect();
-			logger.info(`Notification sending complete`);
+			notice.state = end;
+			notice.send();
 			return;
 		}
 
@@ -156,25 +78,13 @@ const processIds = {
 		else
 			limit = delta;
 
+		playersIds.splice(0);
 		playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
 
 		console.log('delta', delta, page);
 		
 		await repository.subtractReceivedFromPlayers(playersIds);
 
-		// if(playersIds.length == 0){
-		// 	page++;
-		// 	setImmediate(sendLoop);
-		// 	return;
-		// }
-
-		notice.state = checkIds;
-		notice.send();
-	}
-}
-
-const checkIds = {
-	async send(){
 		if(playersIds.length == 0){
 			page++;
 			notice.state = processIds;
@@ -186,46 +96,33 @@ const checkIds = {
 	}
 }
 
-const clearRecieved = {
-	async send(){
-		console.log('clear')
-		await repository.clearReceivedIds();
-		notice.state = processIds;
-		notice.send();
-	}
-}
-
 
 const sending = {
 	async send() {
 		VK.sendNotification(playersIds, state.msg)
 			.then(response => {
 				(async () => {
+					notice.state = processIds;
 					page++;
+					console.log('SENDED');
 					logger.info(`Successful notification for: ${JSON.stringify(response)}`);
 					await repository.saveReceivedIds(response);
 					sendingInterval.fast();
-					console.log('SENDED');
-					notice.state = processIds;
 				})()
 			}).catch( err => {
 				if(err.message == 'Invalid data'){
+					notice.state = processIds;
 					page++;
-					sendingInterval.slow();
 					logger.error('Invalid data');
-
-					notice.state = processIds;
-				}else if(err.message == 'Too frequently'){
 					sendingInterval.slow();
-					logger.error('Too frequently');
-
+				}else if(err.message == 'Too frequently'){
 					notice.state = processIds;
+					logger.error('Too frequently');
+					sendingInterval.slow();
 				}else if(err.message == 'Server fatal error'){
-					logger.error('Server fatal error');
-					state.save({status: states.ERROR, msg: ''});
-					br = true;
-
 					notice.state = idle;
+					state.save({status: states.ERROR, msg: ''});
+					logger.error('Server fatal error');
 				}
 			})
 
