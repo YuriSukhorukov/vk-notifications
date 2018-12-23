@@ -12,7 +12,7 @@ let app = express();
 let page = 0;
 let nPerPage = 100;
  
-let sendingInterval = new TimeInterval(350, 1000);
+let sendingInterval = new TimeInterval(400, 1000);
 
 state.connect().then(() => {
 	state.load().then(res => {
@@ -30,23 +30,24 @@ state.connect().then(() => {
 // 
 
 async function sendNotification(message = '', isNewNotice = true){
+	br = false;
+
 	await repository.connect();
+	if(isNewNotice === true)
+		await repository.clearReceivedIds();
+
 	page = 0;
 
 	console.log('! ', message)
 	logger.info(`Notification started with message: ${ message }`);
 
-	if(isNewNotice === true){
-		let receivedIdsCount = await repository.getReceivedIdsCount();
-		if(receivedIdsCount > 0)
-			await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
-	}
 	await state.save({ status: states.SENDING, msg: message});
 	await sendLoop(message);
 }
-
+let br = false;
 async function sendLoop(){
-	// TODO исправить баг с сообщением
+	if(br === true)
+		return;
 	console.log('...data', state.msg);
 	// db.collection('received').drop();
 	// db.collection('players').drop();
@@ -58,7 +59,7 @@ async function sendLoop(){
 	if(delta <= 0){
 		page = 0;
 		await state.save({status: states.IDLE, msg: ''});
-		// await repository.disconnect();
+		await repository.disconnect();
 		logger.info(`Notification sending complete`);
 		return;
 	}
@@ -100,11 +101,135 @@ async function sendLoop(){
 			logger.error('Too frequently');
 		}else if(err.message == 'Server fatal error'){
 			logger.error('Server fatal error');
+			state.save({status: states.ERROR, msg: ''});
+			br = true;
 			return;
 		}
 	})
 	setTimeout(sendLoop, sendingInterval.time);
 }
+
+
+// const idle = {
+// 	send() {
+// 		console.log('connect');
+
+// 		await repository.connect();
+// 		logger.info(`Notification started with message: ${ message }`);
+// 		let receivedIdsCount = await repository.getReceivedIdsCount();
+
+
+
+
+// 		// notice.state = sending;
+// 	}
+// }
+
+// const sending = {
+// 	send() {
+// 		console.log('sending');
+
+
+
+
+
+
+
+
+
+
+// 		// notice.state = idle;
+// 	}
+// }
+
+// const notice = {
+// 	state: idle,
+// 	send(){
+// 		this.state.send();
+// 	}
+// }
+
+// setTimeout(()=>{notice.state = sending}, 4000);
+// // 
+// setInterval(()=>{notice.send()}, 500)
+
+
+// async function startNotificationSending (message = '', isNewNotice = true) {
+// 	await repository.connect();
+// 	page = 0;
+
+// 	console.log('! ', message)
+// 	logger.info(`Notification started with message: ${ message }`);
+
+// 	if(isNewNotice === true){
+// 		let receivedIdsCount = await repository.getReceivedIdsCount();
+// 		if(receivedIdsCount > 0)
+// 			await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
+// 	}
+// 	await state.save({ status: states.SENDING, msg: message});
+// 	await processIds(message);
+// }
+
+// async function processIds () {
+// 	console.log('...data', state.msg);
+
+// 	let playersCount = await repository.getPlayersIdsCount();
+// 	let delta = playersCount - page * nPerPage
+	
+// 	if(delta <= 0){
+// 		page = 0;
+// 		await state.save({status: states.IDLE, msg: ''});
+// 		// await repository.disconnect();
+// 		logger.info(`Notification sending complete`);
+// 		return;
+// 	}
+
+// 	let limit = 0;
+// 	if(delta > nPerPage)
+// 		limit = nPerPage;
+// 	else
+// 		limit = delta;
+
+// 	let playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
+
+// 	console.log('delta', delta, page);
+	
+// 	await repository.subtractReceivedFromPlayers(playersIds);
+
+// 	if(playersIds.length == 0){
+// 		page++;
+// 		setImmediate(processIds);
+// 		return;
+// 	}else{
+// 		await sendNotificaions();
+// 	}
+// }
+
+// async function sendNotificaions () {
+// 	VK.sendNotification(playersIds, state.msg)
+// 		.then(response => {
+// 			(async () => {
+// 				page++;
+// 				logger.info(`Successful notification for: ${JSON.stringify(response)}`);
+// 				await repository.saveReceivedIds(response);
+// 				sendingInterval.fast();
+// 			})()
+// 		}).catch( err => {
+// 			if(err.message == 'Invalid data'){
+// 				page++;
+// 				sendingInterval.slow();
+// 				logger.error('Invalid data');
+// 			}else if(err.message == 'Too frequently'){
+// 				sendingInterval.slow();
+// 				logger.error('Too frequently');
+// 			}else if(err.message == 'Server fatal error'){
+// 				logger.error('Server fatal error');
+// 				return;
+// 			}
+// 		})
+
+// }
+
 
 // var restartTimeout = function() {
 //     intervalID = setTimeout(sendLoop, 0 );
@@ -141,11 +266,18 @@ async function sendLoop(){
 
 app.get('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
-	sendNotification(message, true);
+	if(state.status !== states.ERROR)
+		sendNotification(message, true);
+	else
+		sendNotification(message, false);
 });
 app.post('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
 	sendNotification(message, true);
+	if(state.status !== states.ERROR)
+		sendNotification(message, true);
+	else
+		sendNotification(message, false);
 });
 
 app.listen(port, () => {

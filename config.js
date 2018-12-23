@@ -11,7 +11,8 @@ const config = {
 	},
 	states: {
 		SENDING: 'SENDING',
-		IDLE: 'IDLE'
+		IDLE: 'IDLE',
+		ERROR: 'ERROR',
 	},
 	mongo: {
 		development: {

@@ -25,7 +25,7 @@ const VK = {
 			throw new Error('Invalid data');
 		if(requestNumber > maxRequestsRate)
 			throw new Error('Too frequently');
-		if(Math.random() > 0.5)
+		if(false /*Math.random() > 0.75*/)
 			throw new Error('Server fatal error');
 
 		let response = ids.map(element => {

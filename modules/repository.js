@@ -19,7 +19,7 @@ const repository = {
 	},
 
 	async clearReceivedIds () {
-		return await db.collection('received').drop();	
+		return await db.collection('received').remove();	
 	},
 
 	async getPlayersIdsCount () {
