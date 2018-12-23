@@ -14,7 +14,7 @@ const state = {
 		return db;
 	},
 	async save(_state){
-		return await db.collection(dbcoll).updateOne(_state, {$set: _state}, {upsert: true});
+		return await db.collection(dbcoll).updateOne({}, {$set: _state}, {upsert: true});
 	},
 	async load(){
 		return await db.collection(dbcoll).findOne()
