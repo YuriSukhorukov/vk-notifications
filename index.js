@@ -44,15 +44,6 @@ const end = {
 	}
 }
 
-const connect = {
-	async send () {
-		logger.info(`Notification started with message: ${ state.msg }`);
-		
-		notice.state = clearRecieved;
-		notice.send();
-	}
-}
-
 const clearRecieved = {
 	async send(){
 		await repository.clearReceivedIds();
@@ -96,7 +87,6 @@ const processIds = {
 	}
 }
 
-
 const sending = {
 	async send() {
 		VK.sendNotification(playersIds, state.msg)
@@ -126,7 +116,7 @@ const sending = {
 				}
 			})
 
-			setTimeout(()=>{notice.send();}, sendingInterval.time);
+		setTimeout(()=>{notice.send();}, sendingInterval.time);
 	}
 }
 
@@ -136,104 +126,6 @@ const notice = {
 		this.state.send();
 	}
 }
-
-
-// setTimeout(()=>{notice.state = sending}, 4000);
-// // 
-// setInterval(()=>{requests = 0}, 1000)
-
-
-// async function startNotificationSending (message = '', isNewNotice = true) {
-// 	await repository.connect();
-// 	page = 0;
-
-// 	console.log('! ', message)
-// 	logger.info(`Notification started with message: ${ message }`);
-
-// 	if(isNewNotice === true){
-// 		let receivedIdsCount = await repository.getReceivedIdsCount();
-// 		if(receivedIdsCount > 0)
-// 			await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
-// 	}
-// 	await state.save({ status: states.SENDING, msg: message});
-// 	await processIds(message);
-// }
-
-// async function processIds () {
-// 	console.log('...data', state.msg);
-
-// 	let playersCount = await repository.getPlayersIdsCount();
-// 	let delta = playersCount - page * nPerPage
-	
-// 	if(delta <= 0){
-// 		page = 0;
-// 		await state.save({status: states.IDLE, msg: ''});
-// 		// await repository.disconnect();
-// 		logger.info(`Notification sending complete`);
-// 		return;
-// 	}
-
-// 	let limit = 0;
-// 	if(delta > nPerPage)
-// 		limit = nPerPage;
-// 	else
-// 		limit = delta;
-
-// 	let playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
-
-// 	console.log('delta', delta, page);
-	
-// 	await repository.subtractReceivedFromPlayers(playersIds);
-
-// 	if(playersIds.length == 0){
-// 		page++;
-// 		setImmediate(processIds);
-// 		return;
-// 	}else{
-// 		await sendNotificaions();
-// 	}
-// }
-
-// async function sendNotificaions () {
-// 	VK.sendNotification(playersIds, state.msg)
-// 		.then(response => {
-// 			(async () => {
-// 				page++;
-// 				logger.info(`Successful notification for: ${JSON.stringify(response)}`);
-// 				await repository.saveReceivedIds(response);
-// 				sendingInterval.fast();
-// 			})()
-// 		}).catch( err => {
-// 			if(err.message == 'Invalid data'){
-// 				page++;
-// 				sendingInterval.slow();
-// 				logger.error('Invalid data');
-// 			}else if(err.message == 'Too frequently'){
-// 				sendingInterval.slow();
-// 				logger.error('Too frequently');
-// 			}else if(err.message == 'Server fatal error'){
-// 				logger.error('Server fatal error');
-// 				return;
-// 			}
-// 		})
-
-// }
-
-
-// var restartTimeout = function() {
-//     intervalID = setTimeout(sendLoop, 0 );
-// };
-
-// the function to run each interval
-// var intervalFunction = function() {
-//     if(conditionIsTrue) {
-//       // Break this iteration and proceed with the next
-//       // without waiting for 3 seconds.
-
-//       clearInterval(intervalID);
-//       restartInterval();
-//    }
-// };
 
 // получаем следующие 100 идентификаторов из players
 // проверяем, есть ли они в бд идентификаторов, получивших сообщение
@@ -255,8 +147,9 @@ const notice = {
 
 app.get('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
-	state.save({ status: states.SENDING, msg: message});
 
+	state.save({ status: states.SENDING, msg: message});
+	
 	if(state.status == states.ERROR || states.status == states.SENDING){
 		notice.state = sending;
 	}
@@ -264,10 +157,6 @@ app.get('/send', (req, res) => {
 		notice.state = clearRecieved;
 	
 	notice.send();
-	// if(state.status !== states.ERROR)
-	// 	sendNotification(message, true);
-	// else
-	// 	sendNotification(message, false);
 });
 app.post('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
