@@ -44,7 +44,7 @@ const stateEnd = {
 }
 
 // Состяние подключения
-const stateConnect = {
+const connectionState = {
 	async action (){
 		await repository.connect();
 		sender.setState(cleaningState);
@@ -157,7 +157,7 @@ app.get('/send', (req, res) => {
 	if(state.status == states.ERROR || states.status == states.SENDING)
 		sender.setState(processingState);
 	else
-		sender.setState(stateConnect);
+		sender.setState(connectionState);
 	
 	sender.action();
 
@@ -170,7 +170,7 @@ app.post('/send', (req, res) => {
 	if(state.status == states.ERROR || states.status == states.SENDING)
 		sender.setState(processingState);
 	else
-		sender.setState(stateConnect);
+		sender.setState(connectionState);
 	
 	sender.action();
 
