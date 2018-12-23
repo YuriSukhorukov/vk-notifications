@@ -1,6 +1,5 @@
 const MongoClient = require('mongodb').MongoClient;
-const {host, dbname} = require('./../config').mongo[process.env.NODE_ENV]
-const mongoClient = new MongoClient(host, { useNewUrlParser: true });
+const uri = require('./../config').mongo[process.env.NODE_ENV].uri;
 
 // Для игроков и получивших сообщение используется одна БД, 
 // т.к. в ТЗ сказано что можно использовать дополнительные коллекции,
@@ -13,17 +12,21 @@ const mongoClient = new MongoClient(host, { useNewUrlParser: true });
 // в коллекции received, при необходимости можно проверить получивших уведомление
 
 let db;
+let client;
 
 const repository = {
 	async connect () {
-		console.log('connect');
-		client = await mongoClient.connect();
-		db = client.db(dbname);
-		return db;
+		return new Promise((res, rej) => {
+			MongoClient.connect(uri, { useNewUrlParser: true }, (err, cl)=>{
+				client = cl;
+				db = cl.db();
+				res();
+			})
+		})
 	},
 
 	async clearReceivedIds () {
-		return await db.collection('received').remove();	
+		return await db.collection('received').deleteMany();	
 	},
 
 	async getPlayersIdsCount () {
@@ -64,7 +67,7 @@ const repository = {
 
  	async disconnect () {
  		console.log('disconnect');
- 		return await mongoClient.close();
+ 		return await client.close();
  	},
 
 	// async insertMockTo(count, _collection){

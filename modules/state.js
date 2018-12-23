@@ -1,8 +1,8 @@
 const MongoClient = require('mongodb').MongoClient;
-const { host, dbname } = require('./../config').mongo.development;
-const mongoClient = new MongoClient(host, { useNewUrlParser: true });
+const uri = require('./../config').mongo[process.env.NODE_ENV].uri;
 
 let db;
+let client;
 
 // От хранения номера страницы (page * nPerPage - обрабатываемый кусок ids в коллекции)
 // отказался по той причине, что коллекция может измениться и мы можем 
@@ -17,9 +17,13 @@ const state = {
 	offset: 0,
 
 	async connect () {
-		client = await mongoClient.connect();
-		db = client.db(dbname);
-		return db;
+		return new Promise((res, rej) => {
+			MongoClient.connect(uri, { useNewUrlParser: true }, (err, cl)=>{
+				client = cl;
+				db = cl.db();
+				res();
+			})
+		})
 	},
 
 	async save (state = {}) {
@@ -38,11 +42,11 @@ const state = {
 	},
 
 	async clear () {
-		return await await db.collection('state').remove();
+		return await await db.collection('state').deleteMany();
 	},
 
 	async disconnect () {
- 		return await mongoClient.close();
+ 		return await client.close();
  	},
 }
 

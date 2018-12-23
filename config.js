@@ -16,14 +16,10 @@ const config = {
 	},
 	mongo: {
 		development: {
-			host: 'mongodb://localhost:27017/',
-			dbname: 'kosmosGamesDB',
+			uri: 'mongodb://localhost:27017/kosmosGamesDB',
 		},
 		production: {
-			host: '',
-			dbname: '',
-			dbuser: '',
-			dbpassword: ''
+			uri: '',
 		}
 	},
 	winston: {
