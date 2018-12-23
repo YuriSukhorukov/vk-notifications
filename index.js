@@ -12,7 +12,7 @@ let app = express();
 let nPerPage = 100;
 let playersIds = [];
  
-let sendingInterval = new TimeInterval(400, 1000);
+let sendingInterval = new TimeInterval(350, 1000);
 
 repository.connect();
 state.connect().then(() => {
@@ -27,22 +27,34 @@ state.connect().then(() => {
 	})
 })
 
-
+// "Тупиковое" состояние, из которого нельзя выйти без вмешательства
 const idle = {
 	async send() {
 		console.log('idle');
 	}
 }
 
+// Состояние завершения рассылки
 const end = {
 	async send() {
 		logger.info(`Notification sending complete`);
 
+		await repository.disconnect();
 		state.offset = 0;
 		await state.save({status: states.IDLE, msg: '', offset: 0 });
 	}
 }
 
+const connect = {
+	async send (){
+		await repository.connect();
+		notice.state = clearRecieved;
+		notice.send();
+	}
+}
+
+// Состояние очистки списка получивших уведомление, переход в это 
+// состояние при запросе на новую рассылку
 const clearRecieved = {
 	async send(){
 		await repository.clearReceivedIds();
@@ -51,6 +63,9 @@ const clearRecieved = {
 	}
 }
 
+// Состояние работы с идентификаторами, получение части идентификаторов 
+// из players ids, проверка на конец коллекции, сравнение полученных id 
+// с теми, что в коллекции получивших.
 const processIds = {
 	async send () {
 		let playersCount = await repository.getPlayersIdsCount();
@@ -73,8 +88,13 @@ const processIds = {
 
 		console.log('delta', delta, state.offset);
 		
+		// удаление из списка id игроков тех id, которые получили уедомление
+		// можно выключить, все равно при сохранении состояния сохраняется
+		// offset коллекции players
 		await repository.subtractReceivedFromPlayers(playersIds);
 
+		// если в загруженной части players id все находятся в списке 
+		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
 			state.offset += nPerPage;
 			notice.state = processIds;
@@ -86,8 +106,8 @@ const processIds = {
 	}
 }
 
-let timeOutId = 0;
-
+// Состояние отправки, взаимоействие с методом-заглушкой сервиса vk, обработка 
+// исключений, сохранение текущего состояния, переход на следующую итерацию.
 const sending = {
 	async send() {
 		VK.sendNotification(playersIds, state.msg)
@@ -119,13 +139,14 @@ const sending = {
 			})
 
 			setImmediate(()=>{
-				idTimeout = setTimeout(()=>{ notice.send(); clearTimeout(idTimeout) }, sendingInterval.time);
+				timoutID = setTimeout(()=>{ notice.send(); clearTimeout(timoutID); }, sendingInterval.time);
 			})
 	}
 }
 
-let idTimeout;
+let timoutID;
 
+// Главный объект :)
 const notice = {
 	state: idle,
 	send(){
@@ -136,15 +157,11 @@ const notice = {
 app.get('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
 	state.save({ status: states.SENDING, msg: message, offset: state.offset});
-	
-	if(state.status == states.ERROR || states.status == states.SENDING){
+
+	if(state.status == states.ERROR || states.status == states.SENDING)
 		notice.state = processIds;
-		console.log('---...data===')
-	}
-	else{
-		notice.state = clearRecieved;
-		console.log('---...data---')
-	}
+	else
+		notice.state = connect;
 	
 	notice.send();
 });

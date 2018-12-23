@@ -7,11 +7,13 @@ let db;
 // От хранения номера страницы (page * nPerPage - обрабатываемый кусок ids в коллекции)
 // отказался по той причине, что коллекция может измениться и мы можем 
 // пропустить некоторых пользователей при возобновленной рассылке
+// 
+// offset для выборки из БД идентификаторов сохраняется как часть состояния, 
+// чтобы начать рассылку с нужного места
 
 const state = {
 	status: '',
 	msg: '',
-	page: 0,
 	offset: 0,
 
 	async connect () {
@@ -23,7 +25,6 @@ const state = {
 	async save (state = {}) {
 		this.status = state.status;
 		this.msg = state.msg;
-		this.page = state.page;
 		this.offset = state.offset;
 		return await db.collection('state').updateOne({}, { $set: state }, { upsert: true });
 	},
@@ -32,7 +33,6 @@ const state = {
 		let state = await db.collection('state').findOne();
 		this.status = state.status;
 		this.msg = state.msg;
-		this.page = state.page;
 		this.offset = state.offset;
 		return state;
 	},

@@ -28,6 +28,7 @@ const VK = {
 		if( false  /*Math.random() > 0.9*/ ) // случайное исключение
 			throw new Error('Server fatal error');
 
+		// Откидывание ненужных _id (дефолтных от монги)
 		let response = ids.map(element => {
 			return { id: element.id };
 		})
