@@ -2,6 +2,8 @@ let express = require('express');
 let config = require('./config').app;
 let logger = require('./modules/winston');
 let VK = require('./mock/vk-api');
+let state = require('./modules/state');
+let repository = require('./modules/mongo')
 let app = express();
 
 const MongoClient = require('mongodb').MongoClient;
@@ -10,27 +12,30 @@ const {SENDING, IDLE} = require('./config').states;
 const mongoClient = new MongoClient(host, { useNewUrlParser: true });
 
 let db = {};
-let state = {status: IDLE, message: ''};
+// let state = {status: IDLE, message: ''};
 let page = 0;
 let nPerPage = 100;
 
-mongoClient.connect((err, client)=>{
-	// (async()=>{
-		db = client.db(dbname);
-		// let st = {status: idle, message: 'hello'};
-		// db.collection('state').save(state);
-		// let _state = db.collection('state').findOne().then(res=>{console.log(res)});
-		// console.log(_state);
-		console.log('...data')
-		if(state.status == SENDING){
-			let message = state.message;;
-			sendNotification(message);
-		}
-	// })()
-		// console.log(state);
-	// })()
-	// insertMock();
-});
+state.connect();
+repository.connect();
+
+// mongoClient.connect((err, client)=>{
+// 	// (async()=>{
+// 		db = client.db(dbname);
+// 		// let st = {status: idle, message: 'hello'};
+// 		// db.collection('state').save(state);
+// 		// let _state = db.collection('state').findOne().then(res=>{console.log(res)});
+// 		// console.log(_state);
+// 		console.log('...data')
+// 		if(state.status == SENDING){
+// 			let message = state.message;;
+// 			sendNotification(message);
+// 		}
+// 	// })()
+// 		// console.log(state);
+// 	// })()
+// 	// insertMock();
+// });
 
 // async function insertMock(){
 // 	let datas = [];
