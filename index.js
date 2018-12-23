@@ -16,8 +16,26 @@ let db = {};
 let page = 0;
 let nPerPage = 100;
 
-state.connect();
-repository.connect();
+
+// (async()=>{
+// 	state.connect();
+// 	state.save({status: IDLE, msg: 'ыыы'});
+// })()
+
+state.connect().then(()=>{
+	state.save({status: IDLE, msg: 'ф!--0.112111!!!111haaisss'})
+	state.load().then(res=>{
+		console.log(res)
+		if(state.status == SENDING)
+			sendNotification('hi');
+	})
+})
+// repository.connect();
+
+
+// setImmediate(()=>{
+	
+// })
 
 // mongoClient.connect((err, client)=>{
 // 	// (async()=>{
