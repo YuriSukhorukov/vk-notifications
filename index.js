@@ -23,19 +23,23 @@ state.connect().then(() => {
 	})
 })
 
-async function sendNotification(message){
+async function sendNotification(){
+	console.log('! ', message)
 	page = 0;
 	logger.info(`Notification started with message: ${ message }`);
 	
 	await repository.connect();
 	// TODO не очищать, в случае остановки сервера в результате падения
-	if(state.status == states.IDLE)
-		await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
-	await state.save({ status: states.SENDING, msg: message });
+	if(state.status == states.IDLE){
+		let receivedIdsCount = await repository.getReceivedIdsCount()
+		if(receivedIdsCount > 0)
+			await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
+	}
+	await state.save({ status: states.SENDING, msg: message});
 	await sendLoop(message);
 }
 
-async function sendLoop(message){
+async function sendLoop(){
 	// TODO исправить баг с сообщением
 	console.log('...data', message);
 	// db.collection('received').drop();
@@ -48,7 +52,7 @@ async function sendLoop(message){
 	if(delta <= 0){
 		page = 0;
 		await state.save({status: states.IDLE, msg: ''});
-		await repository.disconnect();
+		// await repository.disconnect();
 		logger.info(`Notification sending complete`);
 		return;
 	}
@@ -108,13 +112,15 @@ async function sendLoop(message){
 // отправляет запросы не чаще чем N раз в секунду
 // отправляет N записей за раз
 
+let message = '';
+
 app.get('/send', (req, res) => {
-	let message = JSON.stringify(req.query.template);
+	message = JSON.stringify(req.query.template);
 	state.save({status: states.IDLE, msg: message});
 	sendNotification(message);
 });
 app.post('/send', (req, res) => {
-	let message = JSON.stringify(req.query.template);
+	message = JSON.stringify(req.query.template);
 	state.save({status: states.IDLE, msg: message});
 	sendNotification(message);
 });
