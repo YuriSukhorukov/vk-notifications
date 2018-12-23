@@ -26,6 +26,9 @@ const state = {
 		this.msg = _state.msg;
 		return _state;
 	},
+	async clear(){
+		return await await db.collection(dbcoll).drop()
+	}
 }
 
 module.exports = state;
