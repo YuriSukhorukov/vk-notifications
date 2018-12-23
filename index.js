@@ -57,7 +57,7 @@ const stateConnect = {
 const cleaningState = {
 	async action(){
 		await repository.clearReceivedIds();
-		sender.setState(processingStates);
+		sender.setState(processingState);
 		sender.action();
 	}
 }
@@ -65,7 +65,7 @@ const cleaningState = {
 // Состояние работы с идентификаторами, получение части идентификаторов 
 // из players ids, проверка на конец коллекции, сравнение полученных id 
 // с теми, что в коллекции получивших.
-const processingStates = {
+const processingState = {
 	async action () {
 		let playersCount = await repository.getPlayersIdsCount();
 		let delta = playersCount - state.offset;
@@ -90,7 +90,7 @@ const processingStates = {
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
 			state.offset += nPerPage;
-			sender.setState(processingStates);
+			sender.setState(processingState);
 			sender.action();
 		}else{
 			sender.setState(sendingState);
@@ -107,7 +107,7 @@ const sendingState = {
 			.then(response => {
 				(async () => {
 					state.offset += nPerPage;
-					sender.setState(processingStates);
+					sender.setState(processingState);
 					logger.info(`${JSON.stringify(response)}`);
 					await repository.saveReceivedIds(response);
 					await state.save({status: state.status, msg: state.msg, offset: state.offset });
@@ -115,12 +115,12 @@ const sendingState = {
 				})()
 			}).catch( err => {
 				if(err.message == 'Invalid data'){
-					sender.setState(processingStates);
+					sender.setState(processingState);
 					logger.error('Invalid data');
 					state.save({status: state.status, msg: state.msg, offset: state.offset });
 					sendingInterval.slow();
 				}else if(err.message == 'Too frequently'){
-					sender.setState(processingStates);
+					sender.setState(processingState);
 					logger.error('Too frequently');
 					sendingInterval.slow();
 				}else if(err.message == 'Server fatal error'){
@@ -155,7 +155,7 @@ app.get('/send', (req, res) => {
 	state.save({ status: states.SENDING, msg: message, offset: state.offset});
 
 	if(state.status == states.ERROR || states.status == states.SENDING)
-		sender.setState(processingStates);
+		sender.setState(processingState);
 	else
 		sender.setState(stateConnect);
 	
@@ -168,7 +168,7 @@ app.post('/send', (req, res) => {
 	state.save({ status: states.SENDING, msg: message, offset: state.offset});
 
 	if(state.status == states.ERROR || states.status == states.SENDING)
-		sender.setState(processingStates);
+		sender.setState(processingState);
 	else
 		sender.setState(stateConnect);
 	
