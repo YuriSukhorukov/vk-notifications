@@ -1,75 +1,54 @@
 let express = require('express');
 let config = require('./config').app;
 let logger = require('./modules/winston');
-// let mongo = require('./modules/mongo')
 let VK = require('./mock/vk-api');
 let app = express();
 
-// const {url, dbname} = require('./config').mongo.development;
-// const MongoClient = require('mongodb').MongoClient;
-// const mongoClient = new MongoClient(config.host, { useNewUrlParser: true });
-
-
-
-// var MongoClient = require('mongodb').MongoClient, assert = require('assert');
-// // Location
-// var url = 'mongodb://localhost:27017/kosmosGamesDB';
-
-// // Connect
-// let db = {};
-// MongoClient.connect(url, { useNewUrlParser: true }, function(err, _db) {
-//   assert.equal(null, err);
-//   db = _db;
-//   console.log("Connected correctly to server");
-//   // db.close();
-// });
-// 
-let page = 0;
-let nPerPage = 100;
-
 const MongoClient = require('mongodb').MongoClient;
 const {host, dbname} = require('./config').mongo.development;
+const {SENDING, IDLE} = require('./config').states;
 const mongoClient = new MongoClient(host, { useNewUrlParser: true });
 
 let db = {};
+let state = {status: IDLE, message: ''};
+let page = 0;
+let nPerPage = 100;
 
-// mongoClient.connect((err, client)=>{
-// 	db = client.db(dbname);
-// 	console.log('connect');
-// 	(async()=>{
-// 		let a = await db.collection('players').countDocuments();
-// 		let b = await db.collection('players').find().skip(page * nPerPage).limit(nPerPage).toArray(); 
+mongoClient.connect((err, client)=>{
+	// (async()=>{
+		db = client.db(dbname);
+		// let st = {status: idle, message: 'hello'};
+		// db.collection('state').save(state);
+		// let _state = db.collection('state').findOne().then(res=>{console.log(res)});
+		// console.log(_state);
+		console.log('...data')
+		if(state.status == SENDING){
+			let message = state.message;;
+			sendNotification(message);
+		}
+	// })()
+		// console.log(state);
+	// })()
+	// insertMock();
+});
 
-		// let _qr = b.map(element => {return element.id});
-		// let query = { id: { $in: _qr } };
-		// let projection = { id: '' };
-		// let c = await db.collection('received').find(query, projection).toArray();
+// async function insertMock(){
+// 	let datas = [];
+// 	for(let i = 0; i < 1110; i++){
+// 		let _data = {id: i, first_name: 'Ivan'};
+// 		datas.push(_data);
+// 	}
 
-// 		// let e = db.collection('received').insertMany(c);
+// 	return await db.collection('players').insertMany(datas);
+// }
+// 
 
-// 		// let f = await db.collection('received').drop();
-// 		console.log(a);
-// 		console.log(b);
-// 		console.log(c);
-// 		// console.log(f);
-// 	})()
-// });
-
-
-// mongoClient.connect((err, client)=>{
-
-// });
-
-async function insertMock(){
-	let datas = [];
-	for(let i = 0; i < 1110; i++){
-		let _data = {id: i, first_name: 'Ivan'};
-		datas.push(_data);
-	}
-
-	return await db.collection('players').insertMany(datas);
-}
-
+// пытаемся получить состояние из коллекции в бд
+// если полученное состояние SEDFING - продолжаем отправку
+// в ожидании
+// когда приходит запрос на отправку состояние меняется на SENDING
+// состояние сохраняется в коллекцию state
+// 
 
 
 function sendNotification(message){
@@ -78,13 +57,15 @@ function sendNotification(message){
 	mongoClient.connect((err, client)=>{
 		db = client.db(dbname);
 		db.collection('received').drop();
-		sendLoop();
+		db.collection('state').insertOne({status: SENDING, message: message});
+		// db.collection('message').insertOne({message: message});
+		sendLoop(message);
 		
 		// insertMock();
 	});
 }
 
-async function sendLoop(){
+async function sendLoop(message){
 	// db.collection('received').drop();
 	// db.collection('players').drop();
 	// let newPlayers = await insertMock();
@@ -95,10 +76,9 @@ async function sendLoop(){
 	let delta = count - page * nPerPage;
 	
 	if(delta <= 0){
-		let count1 = await db.collection('received').countDocuments();
-		let total = count / 100;
-		let progress = total * count1;
-		logger.info(`Notification sending stopped`);
+		logger.info(`Notification sending complete`);
+		page = 0;
+		db.collection('state').save({status: IDLE, message: ''});
 		return;
 	}
 
@@ -153,7 +133,7 @@ async function sendLoop(){
 }
 
 
-sendNotification('hi!');
+// sendNotification('hi!');
 
 
 async function removeMatchesWhatWhere(findedPlayersInReceived, playersIds){

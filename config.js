@@ -9,6 +9,10 @@ const config = {
 			maxRequestsRate: 3
 		}
 	},
+	states: {
+		SENDING: 'SENDING',
+		IDLE: 'IDLE'
+	},
 	mongo: {
 		development: {
 			host: 'mongodb://localhost:27017/',
