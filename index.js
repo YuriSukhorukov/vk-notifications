@@ -29,7 +29,7 @@ state.connect().then(()=>{
 
 async function sendNotification(message){
 	page = 0;
-	logger.info(`Notification started with message: ${JSON.stringify(message)}`);
+	logger.info(`Notification started with message: ${message}`);
 	// mongoClient.connect((err, client)=>{
 	// 	db = client.db(dbname);
 	// 	db.collection('received').drop();
@@ -42,10 +42,11 @@ async function sendNotification(message){
 	await repository.connect();
 	await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
 	state.save({status: SENDING, msg: message});
-	await sendLoop('message');
+	await sendLoop(message);
 }
 
 async function sendLoop(message){
+	console.log('...data', message);
 	// db.collection('received').drop();
 	// db.collection('players').drop();
 	// let newPlayers = await insertMock();
@@ -57,9 +58,8 @@ async function sendLoop(message){
 	if(delta <= 0){
 		logger.info(`Notification sending complete`);
 		page = 0;
-		state.save({status: IDLE, msg: ''});
-		let a = await repository.disconnect();
-		console.log(a);
+		await state.save({status: IDLE, msg: ''});
+		await repository.disconnect();
 		return;
 	}
 
@@ -71,11 +71,11 @@ async function sendLoop(message){
 
 	let playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
 
-	console.log('delta', delta, page);
+	console.log('delta', delta, page)
 	
 	await repository.subtractReceivedFromPlayers(playersIds);
 
-	VK.sendNotification(playersIds, 'message')
+	VK.sendNotification(playersIds, message)
 	.then(response => {
 		(async()=>{
 			page++;
