@@ -10,8 +10,14 @@ class SendingInterval {
 	fast(){
 		this._time = this._minTime;
 	}
+	faster(){
+		this._time = this._minTime/5;
+	}
 	slow(){
 		this._time = this._maxTime;
+	}
+	slower(){
+		this._time = this._maxTime*5;
 	}
 }
 
