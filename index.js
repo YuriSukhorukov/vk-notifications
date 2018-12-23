@@ -3,7 +3,8 @@ let config = require('./config').app;
 let logger = require('./modules/winston');
 let VK = require('./mock/vk-api');
 let state = require('./modules/state');
-let repository = require('./modules/mongo')
+let repository = require('./modules/mongo');
+let TimeInterval = require('./modules/time-interval');
 let app = express();
 
 const MongoClient = require('mongodb').MongoClient;
@@ -15,40 +16,16 @@ let db = {};
 let page = 0;
 let nPerPage = 100;
 
-
-(async()=>{
-	// let a = await repository.connect();
-	// a = await repository.clearReceivedIds();
-	// a = await repository.getPlayersIdsCount();
-	// a = await repository.getPlayersIdsFrom(page, nPerPage);
-	// a = await repository.getSubtractionReceivedFromPlayers(playersIds);
-
-	// console.log(a);
-})()
-
-
+let sendingInterval = new TimeInterval(350, 1000);
 
 state.connect().then(()=>{
-	// state.save({status: IDLE, msg: 'ф!--0.112111!!!111haaisss'})
 	// state.clear();
 	state.load().then(res=>{
 		console.log(res)
 		if(state.status == SENDING)
-			sendNotification('hi');
+			sendNotification(state.msg);
 	})
 })
-
-
-
-
-// repository.connect().then(res=>{
-// 	console.log(res);
-// });
-
-
-// 
-
-
 
 async function sendNotification(message){
 	page = 0;
@@ -62,13 +39,10 @@ async function sendNotification(message){
 	// 	// insertMock();
 	// });
 	
-	
 	await repository.connect();
-	await repository.clearReceivedIds();
+	await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
 	state.save({status: SENDING, msg: message});
 	await sendLoop('message');
-
-	// console.log(a);
 }
 
 async function sendLoop(message){
@@ -77,26 +51,25 @@ async function sendLoop(message){
 	// let newPlayers = await insertMock();
 	// console.log(newPlayers)
 
-	// let count = await db.collection('players').countDocuments();
 	let count = await repository.getPlayersIdsCount();
-
 	let delta = count - page * nPerPage;
 	
 	if(delta <= 0){
 		logger.info(`Notification sending complete`);
 		page = 0;
 		state.save({status: IDLE, msg: ''});
+		let a = await repository.disconnect();
+		console.log(a);
 		return;
 	}
 
-	let playersIds;
 	let limit = 0;
 	if(delta > nPerPage)
 		limit = nPerPage;
 	else
 		limit = delta;
 
-	playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
+	let playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
 
 	console.log('delta', delta, page);
 	
@@ -107,35 +80,24 @@ async function sendLoop(message){
 		(async()=>{
 			page++;
 			logger.info(`Successful notification for: ${JSON.stringify(response)}`);
-			// let insertedReceived = await db.collection('received').insertMany(response);
 			await repository.saveReceivedIds(response);
+			sendingInterval.fast();
 			console.log('SENDED')
 		})()
 	}).catch(err=>{
-		// requestsPerSecond++;
 		if(err.message == 'Invalid data'){
 			page++;
 			logger.error('Invalid data');
 		}else if(err.message == 'Too frequently'){
+			sendingInterval.slow();
 			logger.error('Too frequently');
 		}else if(err.message == 'Server fatal error'){
 			logger.error('Server fatal error');
 			return;
 		}
 	})
-	setTimeout(sendLoop, 350);
+	setTimeout(sendLoop, sendingInterval.time);
 }
-
-// async function removeMatchesWhatWhere(findedPlayersInReceived, playersIds){
-// 	for(let i = 0; i < findedPlayersInReceived.length; i++){
-// 		for(let j = 0; j < playersIds.length; j++){
-// 			if(findedPlayersInReceived[i].id == playersIds[j].id){
-// 				playersIds.splice(j, 1);
-// 			}
-// 		}
-// 	}
-// }
-
 
 // получаем следующие 100 идентификаторов из players
 // проверяем, есть ли они в бд идентификаторов, получивших сообщение
@@ -146,19 +108,22 @@ async function sendLoop(message){
 // получили идентификаторы, которым успешно отправили сообщение
 // записываем их в бд идентификаторов получивших сообщение
 // повторяем цикл
+// 
+// получаем команду на новую рассылку - коллекция получивших сообщение очищается
+// возобновляем работу после падения - коллекция получивших сообщение не очищается
 
-// фуекция цикличной отправки
+// функция цикличной отправки
 // вызывает сама себя
 // отправляет запросы не чаще чем N раз в секунду
 // отправляет N записей за раз
 
-
 app.get('/send', (req, res) => {
-	let message = req.query.template;
-	sendNotification(JSON.stringify(message));
+	let message = JSON.stringify(req.query.template);
+	sendNotification(message);
 });
 app.post('/send', (req, res) => {
-	let message = req.query.template;
+	let message = JSON.stringify(req.query.template);
+	sendNotification(message);
 });
 
 app.listen(config.port, () => {
