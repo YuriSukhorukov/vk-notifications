@@ -114,7 +114,7 @@ const sendingState = {
 					state.offset += nPerPage;
 					sender.setState(processingStates);
 					console.log('SENDED');
-					logger.info(`Successful notification for: ${JSON.stringify(response)}`);
+					logger.info(`${JSON.stringify(response)}`);
 					await repository.saveReceivedIds(response);
 					await state.save({status: state.status, msg: state.msg, offset: state.offset });
 					sendingInterval.fast();
