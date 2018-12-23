@@ -19,7 +19,6 @@ let sendingInterval = new TimeInterval(delayBetweenRequests, delayBetweenErrors)
 repository.connect();
 state.connect().then(() => {
 	state.load().then(res => {
-		console.log(res)
 		if(state.status == states.SENDING || state.status == states.ERROR){
 			sender.setState(sendingState);
 			sender.action();
@@ -30,9 +29,7 @@ state.connect().then(() => {
 })
 
 const stateIdle = {
-	async action() {
-		console.log('idle');
-	}
+	async action() {}
 }
 
 // Состояние завершения рассылки
@@ -83,8 +80,6 @@ const processingStates = {
 
 		playersIds.splice(0);
 		playersIds = await repository.getPlayersIdsFrom(state.offset, limit);
-
-		console.log('delta', delta, state.offset);
 		
 		// удаление из списка id игроков тех id, которые получили уедомление
 		// можно выключить, все равно при сохранении состояния сохраняется
@@ -113,7 +108,6 @@ const sendingState = {
 				(async () => {
 					state.offset += nPerPage;
 					sender.setState(processingStates);
-					console.log('SENDED');
 					logger.info(`${JSON.stringify(response)}`);
 					await repository.saveReceivedIds(response);
 					await state.save({status: state.status, msg: state.msg, offset: state.offset });

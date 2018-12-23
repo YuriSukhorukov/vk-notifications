@@ -66,7 +66,6 @@ const repository = {
  	},
 
  	async disconnect () {
- 		console.log('disconnect');
  		return await client.close();
  	},
 }
