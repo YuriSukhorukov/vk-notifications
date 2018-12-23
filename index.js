@@ -79,11 +79,7 @@ const processingStates = {
 			return;
 		}
 
-		let limit = 0;
-		if(delta > nPerPage)
-			limit = nPerPage;
-		else
-			limit = delta;
+		let limit = delta > nPerPage ? nPerPage : delta;
 
 		playersIds.splice(0);
 		playersIds = await repository.getPlayersIdsFrom(state.offset, limit);
