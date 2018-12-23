@@ -31,7 +31,7 @@ async function sendNotification(){
 	await repository.connect();
 	// TODO не очищать, в случае остановки сервера в результате падения
 	if(state.status == states.IDLE){
-		let receivedIdsCount = await repository.getReceivedIdsCount()
+		let receivedIdsCount = await repository.getReceivedIdsCount();
 		if(receivedIdsCount > 0)
 			await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
 	}
