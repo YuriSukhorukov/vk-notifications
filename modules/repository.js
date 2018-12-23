@@ -30,11 +30,11 @@ const repository = {
 		return await db.collection('players').countDocuments();
 	},
 
-	async getPlayersIdsFrom (page, nPerPage, limit) {
+	async getPlayersIdsFrom (page = 0, nPerPage = 0, limit = 0) {
 		return await db.collection('players').find().skip(page * nPerPage).limit(limit).toArray(); 
 	},
 
- 	async subtractReceivedFromPlayers (playersIds) {
+ 	async subtractReceivedFromPlayers (playersIds = []) {
  		let normalized = playersIds.map(element => { return element.id });
  		let query = { id: { $in: normalized } };
  		let projection = { id: '' };
@@ -51,7 +51,7 @@ const repository = {
 		return playersIds;
  	},
 
- 	async saveReceivedIds (ids) {
+ 	async saveReceivedIds (ids = []) {
  		return await db.collection('received').insertMany(ids);
  	},
 

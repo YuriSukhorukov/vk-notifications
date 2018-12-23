@@ -25,7 +25,11 @@ state.connect().then(() => {
 	})
 })
 
-async function sendNotification(message, isNewNotice){
+// точка входа - один раз
+// обработка данных - несколько раз
+// 
+
+async function sendNotification(message = '', isNewNotice = true){
 	await repository.connect();
 	page = 0;
 
@@ -71,6 +75,12 @@ async function sendLoop(){
 	
 	await repository.subtractReceivedFromPlayers(playersIds);
 
+	if(playersIds.length == 0){
+		page++;
+		setImmediate(sendLoop);
+		return;
+	}
+
 	VK.sendNotification(playersIds, state.msg)
 	.then(response => {
 		(async () => {
@@ -83,7 +93,7 @@ async function sendLoop(){
 	}).catch( err => {
 		if(err.message == 'Invalid data'){
 			page++;
-			sendingInterval.faster();
+			sendingInterval.slow();
 			logger.error('Invalid data');
 		}else if(err.message == 'Too frequently'){
 			sendingInterval.slow();
@@ -95,6 +105,21 @@ async function sendLoop(){
 	})
 	setTimeout(sendLoop, sendingInterval.time);
 }
+
+// var restartTimeout = function() {
+//     intervalID = setTimeout(sendLoop, 0 );
+// };
+
+// the function to run each interval
+// var intervalFunction = function() {
+//     if(conditionIsTrue) {
+//       // Break this iteration and proceed with the next
+//       // without waiting for 3 seconds.
+
+//       clearInterval(intervalID);
+//       restartInterval();
+//    }
+// };
 
 // получаем следующие 100 идентификаторов из players
 // проверяем, есть ли они в бд идентификаторов, получивших сообщение

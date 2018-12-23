@@ -4,9 +4,14 @@ const mongoClient = new MongoClient(host, { useNewUrlParser: true });
 
 let db;
 
+// От хранения номера страницы (page * nPerPage - обрабатываемый кусок ids в коллекции)
+// отказался по той причине, что коллекция может измениться и мы можем 
+// пропустить некоторых пользователей при возобновленной рассылке
+
 const state = {
 	status: '',
 	msg: '',
+	pageInIdsDb: 0,
 
 	async connect () {
 		client = await mongoClient.connect();
@@ -14,7 +19,7 @@ const state = {
 		return db;
 	},
 
-	async save (state) {
+	async save (state = {}) {
 		this.status = state.status;
 		this.msg = state.msg;
 		return await db.collection('state').updateOne({}, { $set: state }, { upsert: true });
