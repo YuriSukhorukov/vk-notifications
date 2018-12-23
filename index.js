@@ -9,7 +9,6 @@ const states = require('./config').states;
 
 let app = express();
 
-// let page = 0;
 let nPerPage = 100;
 let playersIds = [];
  
@@ -39,7 +38,6 @@ const end = {
 	async send() {
 		logger.info(`Notification sending complete`);
 
-		// page = 0;
 		state.offset = 0;
 		await state.save({status: states.IDLE, msg: '', offset: 0 });
 	}
@@ -56,7 +54,6 @@ const clearRecieved = {
 const processIds = {
 	async send () {
 		let playersCount = await repository.getPlayersIdsCount();
-		// let delta = playersCount - page * nPerPage
 		let delta = playersCount - state.offset;
 
 		if(delta <= 0){
@@ -72,7 +69,6 @@ const processIds = {
 			limit = delta;
 
 		playersIds.splice(0);
-		// playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
 		playersIds = await repository.getPlayersIdsFrom(state.offset, limit);
 
 		console.log('delta', delta, state.offset);
@@ -80,7 +76,6 @@ const processIds = {
 		await repository.subtractReceivedFromPlayers(playersIds);
 
 		if(playersIds.length == 0){
-			// page++;
 			state.offset += nPerPage;
 			notice.state = processIds;
 			notice.send();
@@ -91,13 +86,14 @@ const processIds = {
 	}
 }
 
+let timeOutId = 0;
+
 const sending = {
 	async send() {
 		VK.sendNotification(playersIds, state.msg)
 			.then(response => {
 				(async () => {
 					notice.state = processIds;
-					// page++;
 					state.offset += nPerPage;
 					console.log('SENDED');
 					logger.info(`Successful notification for: ${JSON.stringify(response)}`);
@@ -108,8 +104,6 @@ const sending = {
 			}).catch( err => {
 				if(err.message == 'Invalid data'){
 					notice.state = processIds;
-					// page++;
-					state.offset += nPerPage;
 					logger.error('Invalid data');
 					state.save({status: state.status, msg: state.msg, offset: state.offset });
 					sendingInterval.slow();
@@ -124,9 +118,13 @@ const sending = {
 				}
 			})
 
-		setTimeout(()=>{notice.send();}, sendingInterval.time);
+			setImmediate(()=>{
+				idTimeout = setTimeout(()=>{ notice.send(); clearTimeout(idTimeout) }, sendingInterval.time);
+			})
 	}
 }
+
+let idTimeout;
 
 const notice = {
 	state: idle,
@@ -135,34 +133,18 @@ const notice = {
 	}
 }
 
-// получаем следующие 100 идентификаторов из players
-// проверяем, есть ли они в бд идентификаторов, получивших сообщение
-// идентификаторы, находящиеся в бд получивших исключаем из списка для отправки
-// получаем из бд дополнительные N id для отправки (n - количествово удаленных)
-// повторяем проверку
-// отправили сообщение
-// получили идентификаторы, которым успешно отправили сообщение
-// записываем их в бд идентификаторов получивших сообщение
-// повторяем цикл
-// 
-// получаем команду на новую рассылку - коллекция получивших сообщение очищается
-// возобновляем работу после падения - коллекция получивших сообщение не очищается
-
-// функция цикличной отправки
-// вызывает сама себя
-// отправляет запросы не чаще чем N раз в секунду
-// отправляет N записей за раз
-
 app.get('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
-
 	state.save({ status: states.SENDING, msg: message, offset: state.offset});
 	
 	if(state.status == states.ERROR || states.status == states.SENDING){
-		notice.state = sending;
+		notice.state = processIds;
+		console.log('---...data===')
 	}
-	else
+	else{
 		notice.state = clearRecieved;
+		console.log('---...data---')
+	}
 	
 	notice.send();
 });

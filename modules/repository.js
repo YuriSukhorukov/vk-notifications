@@ -30,9 +30,6 @@ const repository = {
 		return await db.collection('players').countDocuments();
 	},
 
-	// async getPlayersIdsFrom (page = 0, nPerPage = 0, limit = 0) {
-	// 	return await db.collection('players').find().skip(page * nPerPage).limit(limit).toArray(); 
-	// },
 	async getPlayersIdsFrom (offset = 0, limit = 0) {
 		return await db.collection('players').find().skip(offset).limit(limit).toArray(); 
 	},
