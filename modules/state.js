@@ -11,7 +11,8 @@ let db;
 const state = {
 	status: '',
 	msg: '',
-	pageInIdsDb: 0,
+	page: 0,
+	offset: 0,
 
 	async connect () {
 		client = await mongoClient.connect();
@@ -22,6 +23,8 @@ const state = {
 	async save (state = {}) {
 		this.status = state.status;
 		this.msg = state.msg;
+		this.page = state.page;
+		this.offset = state.offset;
 		return await db.collection('state').updateOne({}, { $set: state }, { upsert: true });
 	},
 
@@ -29,11 +32,13 @@ const state = {
 		let state = await db.collection('state').findOne();
 		this.status = state.status;
 		this.msg = state.msg;
+		this.page = state.page;
+		this.offset = state.offset;
 		return state;
 	},
 
 	async clear () {
-		return await await db.collection('state').drop();
+		return await await db.collection('state').remove();
 	},
 
 	async disconnect () {
