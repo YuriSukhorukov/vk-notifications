@@ -1,6 +1,7 @@
-const config = require('./../config').vk;
-
-const { maxUsersIdsCount, maxMessageLength, maxRequestsRate } = config.notice;
+const { 
+	maxUsersIdsCount, 
+	maxMessageLength, 
+	maxRequestsRate } = require('./../config').vk.notice;
 
 let requestNumber = 0;
 let requestNumberId = '';
@@ -23,14 +24,14 @@ const VK = {
 		if(false)
 			throw new Error('Server fatal error');
 
-		ids = ids.map(element=>{
+		let response = ids.map(element=>{
 			return { id: element.id };
 		})
 
 		requestNumber++;
 		resetRequestNumber();
 
-		return ids;
+		return response;
 	}
 }
 

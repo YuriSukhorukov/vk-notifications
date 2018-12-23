@@ -12,26 +12,26 @@ const mongoClient = new MongoClient(host, { useNewUrlParser: true });
 let db;
 
 const repository = {
-	async connect(){
+	async connect () {
 		client = await mongoClient.connect();
 		db = client.db(dbname);
 		return db;
 	},
 
-	async clearReceivedIds(){
+	async clearReceivedIds () {
 		return await db.collection('received').drop();
 	},
 
-	async getPlayersIdsCount(){
+	async getPlayersIdsCount () {
 		return await db.collection('players').countDocuments();
 	},
 
-	async getPlayersIdsFrom(page, nPerPage, limit){
+	async getPlayersIdsFrom (page, nPerPage, limit) {
 		return await db.collection('players').find().skip(page * nPerPage).limit(limit).toArray(); 
 	},
 
- 	async subtractReceivedFromPlayers(playersIds){
- 		let normalized = playersIds.map(element => {return element.id});
+ 	async subtractReceivedFromPlayers (playersIds) {
+ 		let normalized = playersIds.map(element => { return element.id });
  		let query = { id: { $in: normalized } };
  		let projection = { id: '' };
  		let findedPlayersInReceived = await db.collection('received').find(query, projection).toArray();
@@ -47,11 +47,11 @@ const repository = {
 		return playersIds;
  	},
 
- 	async saveReceivedIds(ids){
+ 	async saveReceivedIds (ids) {
  		return await db.collection('received').insertMany(ids);
  	},
 
- 	async disconnect(){
+ 	async disconnect () {
  		return await mongoClient.close();
  	},
 
