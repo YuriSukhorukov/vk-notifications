@@ -17,7 +17,8 @@ function resetRequestNumber(){
 
 const VK = {
 	async sendNotification(ids = [], text = ''){
-		if(ids.length > maxUsersIdsCount || text > maxMessageLength || ids.length == 0) 
+		if(ids.length > maxUsersIdsCount || text > maxMessageLength || 
+			ids.length == 0 || text.length == 0)
 			throw new Error('Invalid data');
 		if(requestNumber > maxRequestsRate)
 			throw new Error('Too frequently');
