@@ -18,7 +18,6 @@ state.connect().then(() => {
 	state.load().then(res => {
 		console.log(res)
 		if(state.status == states.SENDING){
-			// message = state.msg;
 			sendNotification(state.msg, false);
 		}
 	}).catch(err => {

@@ -1,6 +1,5 @@
 const MongoClient = require('mongodb').MongoClient;
-// TODO сделать зависимость от process.env.NODE_ENV
-const {host, dbname} = require('./../config').mongo.development;
+const {host, dbname} = require('./../config').mongo[process.env.NODE_ENV]
 const mongoClient = new MongoClient(host, { useNewUrlParser: true });
 
 // Для игроков и получивших сообщение используется одна БД, 
