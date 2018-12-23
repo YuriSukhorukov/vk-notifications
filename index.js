@@ -26,14 +26,6 @@ state.connect().then(() => {
 async function sendNotification(message){
 	page = 0;
 	logger.info(`Notification started with message: ${ message }`);
-	// mongoClient.connect((err, client)=>{
-	// 	db = client.db(dbname);
-	// 	db.collection('received').drop();
-	// 	db.collection('state').insertOne({status: SENDING, message: message});
-	// 	sendLoop(message);
-		
-	// 	// insertMock();
-	// });
 	
 	await repository.connect();
 	// TODO не очищать, в случае остановки сервера в результате падения
@@ -49,7 +41,6 @@ async function sendLoop(message){
 	// db.collection('received').drop();
 	// db.collection('players').drop();
 	// let newPlayers = await insertMock();
-	// console.log(newPlayers);
 
 	let playersCount = await repository.getPlayersIdsCount();
 	let delta = playersCount - page * nPerPage;

@@ -1,4 +1,5 @@
 const MongoClient = require('mongodb').MongoClient;
+// TODO сделать зависимость от process.env.NODE_ENV
 const {host, dbname} = require('./../config').mongo.development;
 const mongoClient = new MongoClient(host, { useNewUrlParser: true });
 
