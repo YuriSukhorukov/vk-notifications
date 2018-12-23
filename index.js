@@ -11,8 +11,10 @@ let app = express();
 
 let nPerPage = 100;
 let playersIds = [];
+let delayBetweenRequests = 350;
+let delayBetweenErrors = 1000;
  
-let sendingInterval = new TimeInterval(350, 1000);
+let sendingInterval = new TimeInterval(delayBetweenRequests, delayBetweenErrors);
 
 repository.connect();
 state.connect().then(() => {
@@ -149,7 +151,7 @@ let timoutID;
 // Главный объект :)
 const sender = {
 	state: stateIdle,
-	action () {
+	async action () {
 		this.state.action();
 	},
 
@@ -168,14 +170,21 @@ app.get('/send', (req, res) => {
 		sender.setState(stateConnect);
 	
 	sender.action();
+
+	res.send('Notification request received.');
 });
 app.post('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
-	sendNotification(message, true);
-	if(state.status !== states.ERROR)
-		sendNotification(message, true);
+	state.save({ status: states.SENDING, msg: message, offset: state.offset});
+
+	if(state.status == states.ERROR || states.status == states.SENDING)
+		sender.setState(processingStates);
 	else
-		sendNotification(message, false);
+		sender.setState(stateConnect);
+	
+	sender.action();
+
+	res.send('Notification request received.');
 });
 
 app.listen(port, () => {

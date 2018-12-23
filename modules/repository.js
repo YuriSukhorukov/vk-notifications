@@ -69,19 +69,6 @@ const repository = {
  		console.log('disconnect');
  		return await client.close();
  	},
-
-	// async insertMockTo(count, _collection){
-	// 	let datas = [];
-	// 	for(let i = 0; i < count; i++){
-	// 		let _data = {id: i, first_name: 'Ivan'};
-	// 		datas.push(_data);
-	// 	}
-
-	// 	let client = await mongoClient.connect();
-	// 	let db = client.db(dbname);
-	// 	let collection = db.collection(_collection);
-	// 	return await collection.insertMany(datas);
-	// }
 }
 
 module.exports = repository;
