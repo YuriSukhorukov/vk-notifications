@@ -19,24 +19,23 @@ state.connect().then(() => {
 	state.load().then(res => {
 		console.log(res)
 		if(state.status == states.SENDING || state.status == states.ERROR){
-			notice.state = sending;
-			notice.send();
+			sender.setState(sendingState);
+			sender.action();
 		}
 	}).catch(err => {
 		state.save({ status: states.IDLE, msg: '', offset: 0 });
 	})
 })
 
-// "Тупиковое" состояние, из которого нельзя выйти без вмешательства
-const idle = {
-	async send() {
+const stateIdle = {
+	async action() {
 		console.log('idle');
 	}
 }
 
 // Состояние завершения рассылки
-const end = {
-	async send() {
+const stateEnd = {
+	async action() {
 		logger.info(`Notification sending complete`);
 
 		await repository.disconnect();
@@ -45,35 +44,36 @@ const end = {
 	}
 }
 
-const connect = {
-	async send (){
+// Состяние подключения
+const stateConnect = {
+	async action (){
 		await repository.connect();
-		notice.state = clearRecieved;
-		notice.send();
+		sender.setState(cleaningState);
+		sender.action();
 	}
 }
 
 // Состояние очистки списка получивших уведомление, переход в это 
 // состояние при запросе на новую рассылку
-const clearRecieved = {
-	async send(){
+const cleaningState = {
+	async action(){
 		await repository.clearReceivedIds();
-		notice.state = processIds;
-		notice.send();
+		sender.setState(processingStates);
+		sender.action();
 	}
 }
 
 // Состояние работы с идентификаторами, получение части идентификаторов 
 // из players ids, проверка на конец коллекции, сравнение полученных id 
 // с теми, что в коллекции получивших.
-const processIds = {
-	async send () {
+const processingStates = {
+	async action () {
 		let playersCount = await repository.getPlayersIdsCount();
 		let delta = playersCount - state.offset;
 
 		if(delta <= 0){
-			notice.state = end;
-			notice.send();
+			sender.setState(stateEnd);
+			sender.action();
 			return;
 		}
 
@@ -97,24 +97,24 @@ const processIds = {
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
 			state.offset += nPerPage;
-			notice.state = processIds;
-			notice.send();
+			sender.setState(processingStates);
+			sender.action();
 		}else{
-			notice.state = sending;
-			notice.send();
+			sender.setState(sendingState);
+			sender.action();
 		}
 	}
 }
 
 // Состояние отправки, взаимоействие с методом-заглушкой сервиса vk, обработка 
 // исключений, сохранение текущего состояния, переход на следующую итерацию.
-const sending = {
-	async send() {
+const sendingState = {
+	async action() {
 		VK.sendNotification(playersIds, state.msg)
 			.then(response => {
 				(async () => {
-					notice.state = processIds;
 					state.offset += nPerPage;
+					sender.setState(processingStates);
 					console.log('SENDED');
 					logger.info(`Successful notification for: ${JSON.stringify(response)}`);
 					await repository.saveReceivedIds(response);
@@ -123,34 +123,38 @@ const sending = {
 				})()
 			}).catch( err => {
 				if(err.message == 'Invalid data'){
-					notice.state = processIds;
+					sender.setState(processingStates);
 					logger.error('Invalid data');
 					state.save({status: state.status, msg: state.msg, offset: state.offset });
 					sendingInterval.slow();
 				}else if(err.message == 'Too frequently'){
-					notice.state = processIds;
+					sender.setState(processingStates);
 					logger.error('Too frequently');
 					sendingInterval.slow();
 				}else if(err.message == 'Server fatal error'){
-					notice.state = idle;
+					sender.setState(stateIdle);
 					state.save({status: states.ERROR, msg: state.msg, offset: state.offset });
 					logger.error('Server fatal error');
 				}
 			})
 
-			setImmediate(()=>{
-				timoutID = setTimeout(()=>{ notice.send(); clearTimeout(timoutID); }, sendingInterval.time);
-			})
+		setImmediate(()=>{
+			timoutID = setTimeout(()=>{ sender.action(); clearTimeout(timoutID); }, sendingInterval.time);
+		})
 	}
 }
 
 let timoutID;
 
 // Главный объект :)
-const notice = {
-	state: idle,
-	send(){
-		this.state.send();
+const sender = {
+	state: stateIdle,
+	action () {
+		this.state.action();
+	},
+
+	setState (state) {
+		this.state = state
 	}
 }
 
@@ -159,11 +163,11 @@ app.get('/send', (req, res) => {
 	state.save({ status: states.SENDING, msg: message, offset: state.offset});
 
 	if(state.status == states.ERROR || states.status == states.SENDING)
-		notice.state = processIds;
+		sender.setState(processingStates);
 	else
-		notice.state = connect;
+		sender.setState(stateConnect);
 	
-	notice.send();
+	sender.action();
 });
 app.post('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
