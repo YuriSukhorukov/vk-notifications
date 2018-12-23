@@ -17,6 +17,7 @@ let delayBetweenErrors = 1000;
 let sendingInterval = new TimeInterval(delayBetweenRequests, delayBetweenErrors);
 
 repository.connect();
+
 state.connect().then(() => {
 	state.load().then(res => {
 		if(state.status == states.SENDING || state.status == states.ERROR){
@@ -28,12 +29,12 @@ state.connect().then(() => {
 	})
 })
 
-const stateIdle = {
+const idleState = {
 	async action() {}
 }
 
 // Состояние завершения рассылки
-const stateEnd = {
+const endState = {
 	async action() {
 		logger.info(`Notification sending complete`);
 
@@ -71,7 +72,7 @@ const processingState = {
 		let delta = playersCount - state.offset;
 
 		if(delta <= 0){
-			sender.setState(stateEnd);
+			sender.setState(endState);
 			sender.action();
 			return;
 		}
@@ -124,23 +125,23 @@ const sendingState = {
 					logger.error('Too frequently');
 					sendingInterval.slow();
 				}else if(err.message == 'Server fatal error'){
-					sender.setState(stateIdle);
+					sender.setState(idleState);
 					state.save({status: states.ERROR, msg: state.msg, offset: state.offset });
 					logger.error('Server fatal error');
 				}
 			})
 
 		setImmediate(()=>{
-			timoutID = setTimeout(()=>{ sender.action(); clearTimeout(timoutID); }, sendingInterval.time);
+			timeoutID = setTimeout(()=>{ sender.action(); clearTimeout(timeoutID); }, sendingInterval.time);
 		})
 	}
 }
 
-let timoutID;
+let timeoutID;
 
 // Главный объект :)
 const sender = {
-	state: stateIdle,
+	state: idleState,
 	async action () {
 		this.state.action();
 	},
