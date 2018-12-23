@@ -29,7 +29,8 @@ let nPerPage = 100;
 
 
 state.connect().then(()=>{
-	state.save({status: IDLE, msg: 'ф!--0.112111!!!111haaisss'})
+	// state.save({status: IDLE, msg: 'ф!--0.112111!!!111haaisss'})
+	// state.clear();
 	state.load().then(res=>{
 		console.log(res)
 		if(state.status == SENDING)
@@ -49,17 +50,25 @@ state.connect().then(()=>{
 
 
 
-function sendNotification(message){
+async function sendNotification(message){
 	page = 0;
 	logger.info(`Notification started with message: ${JSON.stringify(message)}`);
-	mongoClient.connect((err, client)=>{
-		db = client.db(dbname);
-		db.collection('received').drop();
-		db.collection('state').insertOne({status: SENDING, message: message});
-		sendLoop(message);
+	// mongoClient.connect((err, client)=>{
+	// 	db = client.db(dbname);
+	// 	db.collection('received').drop();
+	// 	db.collection('state').insertOne({status: SENDING, message: message});
+	// 	sendLoop(message);
 		
-		// insertMock();
-	});
+	// 	// insertMock();
+	// });
+	
+	
+	await repository.connect();
+	await repository.clearReceivedIds();
+	state.save({status: SENDING, msg: message});
+	await sendLoop('message');
+
+	// console.log(a);
 }
 
 async function sendLoop(message){
@@ -68,38 +77,38 @@ async function sendLoop(message){
 	// let newPlayers = await insertMock();
 	// console.log(newPlayers)
 
-	let count = await db.collection('players').countDocuments();
+	// let count = await db.collection('players').countDocuments();
+	let count = await repository.getPlayersIdsCount();
 
 	let delta = count - page * nPerPage;
 	
 	if(delta <= 0){
 		logger.info(`Notification sending complete`);
 		page = 0;
-		db.collection('state').save({status: IDLE, message: ''});
+		state.save({status: IDLE, msg: ''});
 		return;
 	}
 
 	let playersIds;
+	let limit = 0;
 	if(delta > nPerPage)
-		playersIds = await db.collection('players').find().skip(page * nPerPage).limit(nPerPage).toArray();
+		limit = nPerPage;
 	else
-		playersIds = await db.collection('players').find().skip(page * nPerPage).limit(delta).toArray();
+		limit = delta;
+
+	playersIds = await repository.getPlayersIdsFrom(page, nPerPage, limit);
 
 	console.log('delta', delta, page);
-
-	let _qr = playersIds.map(element => {return element.id});
-	let query = { id: { $in: _qr } };
-	let projection = { id: '' };
-	let findedPlayersInReceived = await db.collection('received').find(query, projection).toArray();
-
-	removeMatchesWhatWhere(findedPlayersInReceived, playersIds);
+	
+	await repository.subtractReceivedFromPlayers(playersIds);
 
 	VK.sendNotification(playersIds, 'message')
 	.then(response => {
 		(async()=>{
 			page++;
 			logger.info(`Successful notification for: ${JSON.stringify(response)}`);
-			let insertedReceived = await db.collection('received').insertMany(response);
+			// let insertedReceived = await db.collection('received').insertMany(response);
+			await repository.saveReceivedIds(response);
 			console.log('SENDED')
 		})()
 	}).catch(err=>{
@@ -114,18 +123,18 @@ async function sendLoop(message){
 			return;
 		}
 	})
-	setTimeout(sendLoop, 100);
+	setTimeout(sendLoop, 350);
 }
 
-async function removeMatchesWhatWhere(findedPlayersInReceived, playersIds){
-	for(let i = 0; i < findedPlayersInReceived.length; i++){
-		for(let j = 0; j < playersIds.length; j++){
-			if(findedPlayersInReceived[i].id == playersIds[j].id){
-				playersIds.splice(j, 1);
-			}
-		}
-	}
-}
+// async function removeMatchesWhatWhere(findedPlayersInReceived, playersIds){
+// 	for(let i = 0; i < findedPlayersInReceived.length; i++){
+// 		for(let j = 0; j < playersIds.length; j++){
+// 			if(findedPlayersInReceived[i].id == playersIds[j].id){
+// 				playersIds.splice(j, 1);
+// 			}
+// 		}
+// 	}
+// }
 
 
 // получаем следующие 100 идентификаторов из players
