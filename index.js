@@ -12,25 +12,28 @@ let app = express();
 let page = 0;
 let nPerPage = 100;
 
-let sendingInterval = new TimeInterval(350, 1000);
+let sendingInterval = new TimeInterval(1000, 1000);
 
 state.connect().then(() => {
 	state.load().then(res => {
-		if(state.status == states.SENDING)
-			sendNotification(state.msg);
+		console.log(res)
+		if(state.status == states.SENDING){
+			message = state.msg;
+			sendNotification(state.msg, false);
+		}
 	}).catch(err => {
 		state.save({ status: states.IDLE, msg: '' });
 	})
 })
 
-async function sendNotification(){
+async function sendNotification(message, isNewNotice){
 	console.log('! ', message)
 	page = 0;
 	logger.info(`Notification started with message: ${ message }`);
 	
 	await repository.connect();
 	// TODO не очищать, в случае остановки сервера в результате падения
-	if(state.status == states.IDLE){
+	if(isNewNotice === true){
 		let receivedIdsCount = await repository.getReceivedIdsCount();
 		if(receivedIdsCount > 0)
 			await repository.clearReceivedIds(); // очищается даже когда возобновляется работа упавшего
@@ -47,7 +50,7 @@ async function sendLoop(){
 	// let newPlayers = await insertMock();
 
 	let playersCount = await repository.getPlayersIdsCount();
-	let delta = playersCount - page * nPerPage;
+	let delta = playersCount - page * nPerPage
 	
 	if(delta <= 0){
 		page = 0;
@@ -116,13 +119,13 @@ let message = '';
 
 app.get('/send', (req, res) => {
 	message = JSON.stringify(req.query.template);
-	state.save({status: states.IDLE, msg: message});
-	sendNotification(message);
+	// state.save({status: states.IDLE, msg: message});
+	sendNotification(message, true);
 });
 app.post('/send', (req, res) => {
 	message = JSON.stringify(req.query.template);
-	state.save({status: states.IDLE, msg: message});
-	sendNotification(message);
+	// state.save({status: states.IDLE, msg: message});
+	sendNotification(message, true);
 });
 
 app.listen(port, () => {
