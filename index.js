@@ -8,9 +8,9 @@ let TimeInterval = require('./modules/time-interval');
 let app = express();
 
 const MongoClient = require('mongodb').MongoClient;
-const {host, dbname} = require('./config').mongo.development;
+// const {host, dbname} = require('./config').mongo.development;
 const {SENDING, IDLE} = require('./config').states;
-const mongoClient = new MongoClient(host, { useNewUrlParser: true });
+// const mongoClient = new MongoClient(host, { useNewUrlParser: true });
 
 let db = {};
 let page = 0;
@@ -50,7 +50,7 @@ async function sendLoop(message){
 	// db.collection('received').drop();
 	// db.collection('players').drop();
 	// let newPlayers = await insertMock();
-	// console.log(newPlayers)
+	// console.log(newPlayers);
 
 	let count = await repository.getPlayersIdsCount();
 	let delta = count - page * nPerPage;
