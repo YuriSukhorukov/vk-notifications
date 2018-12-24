@@ -9,7 +9,7 @@ const states = require('./config').states;
 
 let app = express();
 
-let nPerPage = 100;
+let idsToTake = 100;
 let playersIds = [];
 let delayBetweenRequests = 350;
 let delayBetweenErrors = 1000;
@@ -77,7 +77,7 @@ const processingState = {
 			return;
 		}
 
-		let limit = delta > nPerPage ? nPerPage : delta;
+		let limit = delta > idsToTake ? idsToTake : delta;
 
 		playersIds.splice(0);
 		playersIds = await repository.getPlayersIdsFrom(state.offset, limit);
@@ -90,7 +90,7 @@ const processingState = {
 		// если в загруженной части players id все находятся в списке 
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
-			state.offset += nPerPage;
+			state.offset += idsToTake;
 			sender.setState(processingState);
 			sender.action();
 		}else{
@@ -107,7 +107,7 @@ const sendingState = {
 		VK.sendNotification(playersIds, state.msg)
 			.then(response => {
 				(async () => {
-					state.offset += nPerPage;
+					state.offset += idsToTake;
 					sender.setState(processingState);
 					logger.info(`${JSON.stringify(response)}`);
 					await repository.saveReceivedIds(response);
