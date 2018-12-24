@@ -19,7 +19,7 @@ const config = {
 			uri: 'mongodb://localhost:27017/kosmosGamesDB',
 		},
 		production: {
-			uri: '',
+			uri: 'mongodb://localhost:27017/kosmosGamesDB',
 		}
 	},
 	winston: {
