@@ -179,5 +179,5 @@ app.post('/send', (req, res) => {
 });
 
 app.listen(port, () => {
-  logger.info('Vk notifications service listening on port 3000!');
+  logger.info(`Vk notifications service listening on port ${port}!`);
 });
