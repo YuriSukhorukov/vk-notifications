@@ -30,7 +30,7 @@ const repository = {
 	},
 
 	async getPlayersIdsCount () {
-		return await db.collection('players').countDocuments();
+		return await db.collection('players').count();
 	},
 
 	async getReceivedIdsCount () {
