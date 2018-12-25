@@ -4,14 +4,14 @@ const config = {
 	},
 	service: {
 		idsToTake: 100,
-		delayBetweenRequests: 350,
+		delayBetweenRequests: /*0*/ 1350,
 		delayBetweenErrors: 1000
 	},
 	vk: {
 		notice: {
 			maxUsersIdsCount: 100,
 			maxMessageLength: 254,
-			maxRequestsRate: 3
+			maxRequestsRate: /*10000000*/ 3
 		}
 	},
 	states: {
