@@ -30,7 +30,7 @@ const repository = {
 	},
 
 	async getPlayersIdsCount () {
-		return await db.collection('players').count();
+		return await db.collection('players').countDocuments();
 	},
 
 	async getReceivedIdsCount () {
@@ -38,14 +38,14 @@ const repository = {
 	},
 
 	async getPlayersIdsFrom (offset = 0, limit = 0) {
-		let projection = { _id: 0 };
+		let projection = { _id: 0, id: '' };
 		return await db.collection('players').find({}, { projection }).skip(offset).limit(limit).toArray(); 
 	},
 
  	async subtractReceivedFromPlayers (playersIds = []) {
  		let normalized = playersIds.map(element => { return element.id });
  		let query = { id: { $in: normalized } };
- 		let projection = { id: '' };
+ 		let projection = { _id: 0, id: '' };
 
  		// Поиск совпадений players ids с id получивших уведомление
  		let findedPlayersInReceived = await db.collection('received').find(query, projection).toArray();
