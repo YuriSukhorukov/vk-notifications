@@ -41,7 +41,6 @@ const endState = {
 		logger.info(`Notification sending complete`);
 
 		await repository.disconnect();
-		state.offset = 0;
 		await state.save({status: states.IDLE, msg: '', offset: 0 });
 	}
 }
@@ -92,7 +91,7 @@ const processingState = {
 		// если в загруженной части players id все находятся в списке 
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
-			state.offset += idsToTake;
+			await state.save({status: state.status, msg: state.msg, offset: state.offset += idsToTake });
 			sender.setState(processingState);
 			sender.action();
 		}else{
