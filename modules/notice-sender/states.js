@@ -127,8 +127,6 @@ const processingState = {
 // Состояние отправки, взаимоействие с методом-заглушкой сервиса vk, обработка 
 // исключений, сохранение текущего состояния, переход на следующую итерацию.
 const sendingState = {
- 	timeoutID: 0,
-
 	async action (sender) {
 		console.log('sendingState');
 		VK.sendNotification(playersIds, state.msg)

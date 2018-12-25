@@ -13,6 +13,10 @@ const uri = require('./../config').mongo[process.env.NODE_ENV].uri;
 
 let db;
 let client;
+let cursor;
+let query = {};
+let projection = { _id: 0, id: 1 };
+let ids = [];
 
 const repository = {
 	async connect () {
@@ -20,6 +24,7 @@ const repository = {
 			MongoClient.connect(uri, { useNewUrlParser: true }, (err, cl)=>{
 				client = cl;
 				db = cl.db();
+				cursor = db.collection('players').find({}, { projection });
 				res();
 			})
 		})
@@ -34,12 +39,21 @@ const repository = {
 	},
 
 	async getReceivedIdsCount () {
-		return await db.collection('players').count();
+		return await db.collection('received').count();
 	},
 
 	async getPlayersIdsFrom (offset = 0, limit = 0) {
-		let projection = { _id: 0, id: '' };
-		return await db.collection('players').find({}, { projection }).skip(offset).limit(limit).toArray(); 
+		// let projection = { _id: 0, id: '' };
+		// Изменить метод итерации по игрокам на способ с помощью курсора
+		// return await db.collection('players').find({}, { projection }).skip(offset).limit(limit).toArray(); 
+		// 
+		let n = 0;
+		ids.splice(0);
+		while(await cursor.hasNext() && n < limit) {
+		  n++;
+		  ids.push(await cursor.next());
+		}
+		return ids;
 	},
 
  	async subtractReceivedFromPlayers (playersIds = []) {
@@ -67,6 +81,7 @@ const repository = {
  	},
 
  	async disconnect () {
+ 		await cursor.close();
  		return await client.close();
  	},
 }
