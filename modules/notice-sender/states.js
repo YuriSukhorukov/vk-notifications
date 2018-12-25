@@ -18,12 +18,13 @@ const idleState = {
 
 const initializeState = {
 	async action (sender) /*sender -> context*/ {
-		console.log('initializeState');
+		// console.log('initializeState');
 		state.connect().then(() => {
 			state.load().then(res => {
-				console.log('initializeState');
+				// console.log('initializeState');
 				sender.setState(connectionState);
 				sender.action();
+				console.log(state.status);
 			}).catch(err => {
 				state.save({ status: states.IDLE, msg: '', offset: 0 });
 			})
@@ -34,18 +35,18 @@ const initializeState = {
 // Состяние подключения
 const connectionState = {
 	async action (sender) {
-		console.log('connectionState');
+		// console.log('connectionState');
 		await repository.connect();
 		await repository.skipPlayersIdsQuantity(state.offset);
 		if(state.status == states.SENDING){
 			sender.setState(processingState);
-			console.log('-> cleaningState');
+			// console.log('-> processingState');
 		}else if(state.status == states.ERROR){
 			sender.setState(processingState);
-			console.log('-> connectionState');
+			// console.log('-> connectionState');
 		}else if(state.status == states.IDLE){
 			sender.setState(idleState);
-			console.log('-> connectionState');
+			// console.log('-> connectionState');
 		}
 		sender.action();
 	}
@@ -53,7 +54,7 @@ const connectionState = {
 
 const processRequestState = {
 	async action (sender) {
-		console.log('processRequestState');
+		// console.log('processRequestState');
 		clearTimeout(timeoutID);
 		clearImmediate(immediateID);
 		state.save({ status: state.status, msg: sender.message, offset: state.offset});
@@ -61,16 +62,16 @@ const processRequestState = {
 		if(state.status == states.SENDING){
 			await state.save({ status: states.SENDING, msg: sender.message, offset: 0});
 			await sender.setState(cleaningState);
-			console.log('-> cleaningState');
+			// console.log('-> cleaningState');
 		}else if(state.status == states.ERROR){
-			console.log('!!!!!!!!!')
+			// console.log('!!!!!!!!!')
 			await state.save({ status: states.SENDING, msg: sender.message, offset: state.offset});
 			await sender.setState(processingState);
-			console.log('-> connectionState');
+			// console.log('-> connectionState');
 		}else if(state.status == states.IDLE){
 			await state.save({ status: states.SENDING, msg: sender.message, offset: state.offset});
 			await sender.setState(processingState);
-			console.log('-> connectionState');
+			// console.log('-> connectionState');
 		}
 		console.log(sender.message)
 
@@ -81,7 +82,7 @@ const processRequestState = {
 // Состояние завершения рассылки
 const endState = {
 	async action (sender) {
-		console.log('endState');
+		// console.log('endState');
 		logger.info(`Notification sending complete`);
 
 		await repository.disconnect();
@@ -93,7 +94,7 @@ const endState = {
 // состояние при запросе на новую рассылку
 const cleaningState = {
 	async action (sender) {
-		console.log('cleaningState');
+		// console.log('cleaningState');
 		await repository.resetPlayersIdsCursor();
 		await repository.clearReceivedIds();
 		// await repository.skipPlayersIdsQuantity(state.offset);
@@ -108,9 +109,11 @@ const cleaningState = {
 // с теми, что в коллекции получивших.
 const processingState = {
 	async action (sender) {
-		console.log('processingState');
+		// console.log('processingState');
 		let playersCount = await repository.getPlayersIdsCount();
 		let delta = playersCount - state.offset;
+
+		// console.log(state.offset);
 
 		if(delta <= 0){
 			sender.setState(endState);
@@ -123,7 +126,6 @@ const processingState = {
 		playersIds.splice(0);
 		playersIds = await repository.getPlayersIdsFrom(limit);
 		
-		console.log(state.offset);
 		// удаление из списка id игроков тех id, которые получили уедомление
 		// можно выключить, все равно при сохранении состояния сохраняется
 		// offset коллекции players
@@ -132,12 +134,12 @@ const processingState = {
 		// если в загруженной части players id все находятся в списке 
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
-			console.log('-> processingState');
+			// console.log('-> processingState');
 			await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake });
 			sender.setState(processingState);
 			sender.action();
 		}else{
-			console.log('-> sendingState');
+			// console.log('-> sendingState');
 			sender.setState(sendingState);
 			sender.action();
 		}
@@ -148,31 +150,30 @@ const processingState = {
 // исключений, сохранение текущего состояния, переход на следующую итерацию.
 const sendingState = {
 	async action (sender) {
-		console.log('sendingState');
+		// console.log('sendingState');
 		VK.sendNotification(playersIds, state.msg)
 			.then(response => {
 				(async () => {
-					// state.offset += idsToTake;
+					sender.setState(processingState);
 					logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
 					await repository.saveReceivedIds(response);
 					await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake } );
 					sendingInterval.fast();
-					sender.setState(processingState);
 				})()
 			}).catch( err => {
 				if(err.message == 'Invalid data'){
+					sender.setState(processingState);
 					logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 					state.save({ status: state.status, msg: state.msg, offset: state.offset });
 					sendingInterval.slow();
-					sender.setState(processingState);
 				}else if(err.message == 'Too frequently'){
 					sender.setState(processingState);
 					logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 					sendingInterval.slow();
 				}else if(err.message == 'Server fatal error'){
+					sender.setState(idleState);
 					state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
 					logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-					sender.setState(idleState);
 				}
 			});
 

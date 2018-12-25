@@ -37,14 +37,13 @@ const repository = {
 
 	async resetPlayersIdsCursor () {
 		// return await cursor.rewind();
-		cursor.close();
+		await cursor.close();
 		cursor = await db.collection('players').find({}, { projection });
 	},
 
 	async clearReceivedIds () {
 		// return await cursor.rewind();
-		
-		return await db.collection('received').drop();	
+		return await db.collection('received').deleteMany();	
 	},
 
 	async getPlayersIdsCount () {
