@@ -38,7 +38,8 @@ const repository = {
 	},
 
 	async getPlayersIdsFrom (offset = 0, limit = 0) {
-		return await db.collection('players').find().skip(offset).limit(limit).toArray(); 
+		let projection = { _id: 0 };
+		return await db.collection('players').find({}, { projection }).skip(offset).limit(limit).toArray(); 
 	},
 
  	async subtractReceivedFromPlayers (playersIds = []) {
