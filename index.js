@@ -1,13 +1,17 @@
 let express = require('express');
 let logger = require('./modules/logger');
-const sender = require('./modules/notice-sender');
+const sender = require('./modules/notice-sender/notice-sender');
 const { port } = require('./config').app;
 
 let app = express();
 
+sender.setState(sender.states.initializeState);
+sender.action();
+
 app.get('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
 
+	sender.setMessage(message);
 	sender.setState(sender.states.processRequestState);
 	sender.action();
 
@@ -16,6 +20,7 @@ app.get('/send', (req, res) => {
 app.post('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
 
+	sender.setMessage(message);
 	sender.setState(sender.states.processRequestState);
 	sender.action();
 
