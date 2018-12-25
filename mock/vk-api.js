@@ -25,7 +25,7 @@ const VK = {
 			throw new Error('Invalid data');
 		if(requestNumber > maxRequestsRate)
 			throw new Error('Too frequently');
-		if( false /*Math.random() > 0.9*/ ) // случайное исключение
+		if( /*false*/ Math.random() > 0.6 ) // случайное исключение
 			throw new Error('Server fatal error');
 
 		// Откидывание ненужных _id (дефолтных от монги)

@@ -96,7 +96,7 @@ const repository = {
  	},
 
  	async disconnect () {
- 		await cursor.close();
+ 		// await cursor.close();
  		return await client.close();
  	},
 }

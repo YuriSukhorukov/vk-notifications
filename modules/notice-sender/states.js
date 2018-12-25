@@ -13,7 +13,7 @@ let playersIds = [];
 let sendingInterval = new TimeInterval(delayBetweenRequests, delayBetweenErrors);
 
 const idleState = {
-	async action () {}
+	async action (sender) {}
 }
 
 const initializeState = {
@@ -69,7 +69,7 @@ const processRequestState = {
 			// await repository.skipPlayersIdsQuantity(state.offset);
 			// console.log('!!!!!!!!!')
 			// await state.save({ status: states.SENDING, msg: sender.message, offset: state.offset});
-			await sender.setState(processingState);
+			await sender.setState(connectionState);
 			// console.log('-> connectionState');
 		}else if(state.status == states.IDLE){
 			await state.save({ status: states.SENDING, msg: sender.message, offset: 0});
@@ -81,6 +81,8 @@ const processRequestState = {
 		sender.action();
 	}
 }
+
+// при ошибке нужно сбросить курсор и создать новый
 
 // Состояние завершения рассылки
 const endState = {
@@ -177,7 +179,7 @@ const sendingState = {
 					sendingInterval.slow();
 				}else if(err.message == 'Server fatal error'){
 					console.log(state.offset);
-					sender.setState(idleState);
+					sender.setState(disconnectState);
 					state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
 					logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 				}
@@ -191,6 +193,12 @@ const sendingState = {
 
 let timeoutID;
 let immediateID;
+
+const disconnectState = {
+	async action (sender) {
+		await repository.disconnect();
+	}
+}
 
 const st = {
 	idleState,
