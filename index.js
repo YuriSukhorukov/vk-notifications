@@ -41,7 +41,7 @@ const endState = {
 		logger.info(`Notification sending complete`);
 
 		await repository.disconnect();
-		await state.save({status: states.IDLE, msg: '', offset: 0 });
+		await state.save({ status: states.IDLE, msg: '', offset: 0 });
 	}
 }
 
@@ -91,7 +91,7 @@ const processingState = {
 		// если в загруженной части players id все находятся в списке 
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
-			await state.save({status: state.status, msg: state.msg, offset: state.offset += idsToTake });
+			await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake });
 			sender.setState(processingState);
 			sender.action();
 		}else{
@@ -110,25 +110,25 @@ const sendingState = {
 				(async () => {
 					state.offset += idsToTake;
 					sender.setState(processingState);
-					logger.info(`${JSON.stringify(response)}`);
+					logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
 					await repository.saveReceivedIds(response);
-					await state.save({status: state.status, msg: state.msg, offset: state.offset });
+					await state.save({ status: state.status, msg: state.msg, offset: state.offset } );
 					sendingInterval.fast();
 				})()
 			}).catch( err => {
 				if(err.message == 'Invalid data'){
 					sender.setState(processingState);
-					logger.error('Invalid data');
-					state.save({status: state.status, msg: state.msg, offset: state.offset });
+					logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+					state.save({ status: state.status, msg: state.msg, offset: state.offset });
 					sendingInterval.slow();
 				}else if(err.message == 'Too frequently'){
 					sender.setState(processingState);
-					logger.error('Too frequently');
+					logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 					sendingInterval.slow();
 				}else if(err.message == 'Server fatal error'){
 					sender.setState(idleState);
-					state.save({status: states.ERROR, msg: state.msg, offset: state.offset });
-					logger.error('Server fatal error');
+					state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
+					logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 				}
 			})
 
