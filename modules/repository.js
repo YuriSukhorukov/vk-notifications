@@ -59,7 +59,7 @@ const repository = {
 		// Изменить метод итерации по игрокам на способ с помощью курсора
 		// return await db.collection('players').find({}, { projection }).skip(offset).limit(limit).toArray(); 
 		// 
-		// 
+		// await db.collection('players').createIndex({ id: 1 });
 		let n = 0;
 		ids.splice(0);
 		while(await cursor.hasNext() && n < limit) {

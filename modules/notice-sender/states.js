@@ -38,6 +38,7 @@ const connectionState = {
 		// console.log('connectionState');
 		await repository.connect();
 		await repository.skipPlayersIdsQuantity(state.offset);
+		console.log(state.offset);
 		if(state.status == states.SENDING){
 			sender.setState(processingState);
 			// console.log('-> processingState');
@@ -64,13 +65,15 @@ const processRequestState = {
 			await sender.setState(cleaningState);
 			// console.log('-> cleaningState');
 		}else if(state.status == states.ERROR){
+			// await repository.resetPlayersIdsCursor();
+			// await repository.skipPlayersIdsQuantity(state.offset);
 			// console.log('!!!!!!!!!')
-			await state.save({ status: states.SENDING, msg: sender.message, offset: state.offset});
+			// await state.save({ status: states.SENDING, msg: sender.message, offset: state.offset});
 			await sender.setState(processingState);
 			// console.log('-> connectionState');
 		}else if(state.status == states.IDLE){
-			await state.save({ status: states.SENDING, msg: sender.message, offset: state.offset});
-			await sender.setState(processingState);
+			await state.save({ status: states.SENDING, msg: sender.message, offset: 0});
+			await sender.setState(connectionState);
 			// console.log('-> connectionState');
 		}
 		console.log(sender.message)
@@ -113,7 +116,7 @@ const processingState = {
 		let playersCount = await repository.getPlayersIdsCount();
 		let delta = playersCount - state.offset;
 
-		// console.log(state.offset);
+		console.log(state.offset);
 
 		if(delta <= 0){
 			sender.setState(endState);
@@ -129,20 +132,20 @@ const processingState = {
 		// удаление из списка id игроков тех id, которые получили уедомление
 		// можно выключить, все равно при сохранении состояния сохраняется
 		// offset коллекции players
-		await repository.subtractReceivedFromPlayers(playersIds);
+		// 
+		// Отказ от поиска plyaers ids в received
+		// await repository.subtractReceivedFromPlayers(playersIds);
 
 		// если в загруженной части players id все находятся в списке 
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
-		if(playersIds.length == 0){
-			// console.log('-> processingState');
-			await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake });
-			sender.setState(processingState);
-			sender.action();
-		}else{
-			// console.log('-> sendingState');
+		// if(playersIds.length == 0){
+		// 	await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake });
+		// 	sender.setState(processingState);
+		// 	sender.action();
+		// }else{
 			sender.setState(sendingState);
 			sender.action();
-		}
+		// }
 	}
 }
 
@@ -156,7 +159,9 @@ const sendingState = {
 				(async () => {
 					sender.setState(processingState);
 					logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
-					await repository.saveReceivedIds(response);
+
+					// Отказ от сохранения plyaers ids в received
+					// await repository.saveReceivedIds(response);
 					await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake } );
 					sendingInterval.fast();
 				})()
@@ -171,6 +176,7 @@ const sendingState = {
 					logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 					sendingInterval.slow();
 				}else if(err.message == 'Server fatal error'){
+					console.log(state.offset);
 					sender.setState(idleState);
 					state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
 					logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
