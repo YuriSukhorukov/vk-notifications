@@ -17,6 +17,7 @@ let cursor;
 let query = {};
 let projection = { _id: 0, id: 1 };
 let ids = [];
+let server;
 
 const repository = {
 	async connect () {
@@ -28,6 +29,10 @@ const repository = {
 				res();
 			})
 		})
+	},
+
+	async skipPlayersIdsQuantity (offset) {
+		cursor.skip(offset);
 	},
 
 	async clearReceivedIds () {
@@ -42,10 +47,12 @@ const repository = {
 		return await db.collection('received').count();
 	},
 
-	async getPlayersIdsFrom (offset = 0, limit = 0) {
+	async getPlayersIdsFrom (limit = 0) {
 		// let projection = { _id: 0, id: '' };
 		// Изменить метод итерации по игрокам на способ с помощью курсора
 		// return await db.collection('players').find({}, { projection }).skip(offset).limit(limit).toArray(); 
+		// 
+		
 		// 
 		let n = 0;
 		ids.splice(0);

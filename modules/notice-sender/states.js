@@ -68,6 +68,7 @@ const connectionState = {
 	async action (sender) {
 		console.log('connectionState');
 		await repository.connect();
+		await repository.skipPlayersIdsQuantity(state.offset);
 		if(state.status == states.SENDING || state.status == states.ERROR){
 			sender.setState(processingState);
 			sender.action();
@@ -104,7 +105,7 @@ const processingState = {
 		let limit = delta > idsToTake ? idsToTake : delta;
 
 		playersIds.splice(0);
-		playersIds = await repository.getPlayersIdsFrom(state.offset, limit);
+		playersIds = await repository.getPlayersIdsFrom(limit);
 		
 		// удаление из списка id игроков тех id, которые получили уедомление
 		// можно выключить, все равно при сохранении состояния сохраняется
@@ -114,10 +115,12 @@ const processingState = {
 		// если в загруженной части players id все находятся в списке 
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
+			console.log('-> processingState');
 			await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake });
 			sender.setState(processingState);
 			sender.action();
 		}else{
+			console.log('-> sendingState');
 			sender.setState(sendingState);
 			sender.action();
 		}
