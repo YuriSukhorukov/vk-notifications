@@ -6,17 +6,15 @@ let repository = require('./modules/repository');
 let TimeInterval = require('./modules/time-interval');
 const { port } = require('./config').app;
 const states = require('./config').states;
-
 const {
 	idsToTake, 
 	delayBetweenRequests, 
 	delayBetweenErrors } = require('./config').service;
 
 let app = express();
+let sendingInterval = new TimeInterval(delayBetweenRequests, delayBetweenErrors);
 
 let playersIds = [];
- 
-let sendingInterval = new TimeInterval(delayBetweenRequests, delayBetweenErrors);
 
 repository.connect();
 
@@ -32,12 +30,23 @@ state.connect().then(() => {
 })
 
 const idleState = {
-	async action() {}
+	async action () {}
+}
+
+const processRequestState = {
+	async action () {
+		if(state.status == states.ERROR || states.status == states.SENDING)
+			sender.setState(processingState);
+		else
+			sender.setState(connectionState);
+
+		sender.action();
+	}
 }
 
 // Состояние завершения рассылки
 const endState = {
-	async action() {
+	async action () {
 		logger.info(`Notification sending complete`);
 
 		await repository.disconnect();
@@ -47,7 +56,7 @@ const endState = {
 
 // Состяние подключения
 const connectionState = {
-	async action (){
+	async action () {
 		await repository.connect();
 		sender.setState(cleaningState);
 		sender.action();
@@ -57,7 +66,7 @@ const connectionState = {
 // Состояние очистки списка получивших уведомление, переход в это 
 // состояние при запросе на новую рассылку
 const cleaningState = {
-	async action(){
+	async action () {
 		await repository.clearReceivedIds();
 		sender.setState(processingState);
 		sender.action();
@@ -104,7 +113,7 @@ const processingState = {
 // Состояние отправки, взаимоействие с методом-заглушкой сервиса vk, обработка 
 // исключений, сохранение текущего состояния, переход на следующую итерацию.
 const sendingState = {
-	async action() {
+	async action () {
 		VK.sendNotification(playersIds, state.msg)
 			.then(response => {
 				(async () => {
@@ -142,13 +151,13 @@ let timeoutID;
 
 // Главный объект :)
 const sender = {
-	state: idleState,
+	state: connectionState,
 	async action () {
 		this.state.action();
 	},
 
 	setState (state) {
-		this.state = state
+		this.state = state;
 	}
 }
 
@@ -156,24 +165,13 @@ app.get('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
 	state.save({ status: states.SENDING, msg: message, offset: state.offset});
 
-	if(state.status == states.ERROR || states.status == states.SENDING)
-		sender.setState(processingState);
-	else
-		sender.setState(connectionState);
-	
-	sender.action();
-
 	res.send('Notification request received.');
 });
 app.post('/send', (req, res) => {
 	let message = JSON.stringify(req.query.template);
 	state.save({ status: states.SENDING, msg: message, offset: state.offset});
 
-	if(state.status == states.ERROR || states.status == states.SENDING)
-		sender.setState(processingState);
-	else
-		sender.setState(connectionState);
-	
+	sender.setState(processRequestState);
 	sender.action();
 
 	res.send('Notification request received.');
