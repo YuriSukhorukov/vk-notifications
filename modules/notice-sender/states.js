@@ -84,16 +84,6 @@ const processRequestState = {
 
 // при ошибке нужно сбросить курсор и создать новый
 
-// Состояние завершения рассылки
-const endState = {
-	async action (sender) {
-		// console.log('endState');
-		logger.info(`Notification sending complete`);
-
-		await repository.disconnect();
-		await state.save({ status: states.IDLE, msg: '', offset: 0 });
-	}
-}
 
 // Состояние очистки списка получивших уведомление, переход в это 
 // состояние при запросе на новую рассылку
@@ -193,6 +183,16 @@ const sendingState = {
 
 let timeoutID;
 let immediateID;
+
+// Состояние завершения рассылки
+const endState = {
+	async action (sender) {
+		logger.info(`Notification sending complete`);
+		await state.save({ status: states.IDLE, msg: '', offset: 0 });
+		state.setState(disconnect);
+		state.action();
+	}
+}
 
 const disconnectState = {
 	async action (sender) {
