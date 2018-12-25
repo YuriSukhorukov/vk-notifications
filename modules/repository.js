@@ -32,11 +32,19 @@ const repository = {
 	},
 
 	async skipPlayersIdsQuantity (offset) {
-		cursor.skip(offset);
+		return await cursor.skip(offset);
+	},
+
+	async resetPlayersIdsCursor () {
+		// return await cursor.rewind();
+		cursor.close();
+		cursor = await db.collection('players').find({}, { projection });
 	},
 
 	async clearReceivedIds () {
-		return await db.collection('received').deleteMany();	
+		// return await cursor.rewind();
+		
+		return await db.collection('received').drop();	
 	},
 
 	async getPlayersIdsCount () {
@@ -52,7 +60,6 @@ const repository = {
 		// Изменить метод итерации по игрокам на способ с помощью курсора
 		// return await db.collection('players').find({}, { projection }).skip(offset).limit(limit).toArray(); 
 		// 
-		
 		// 
 		let n = 0;
 		ids.splice(0);
@@ -66,7 +73,7 @@ const repository = {
  	async subtractReceivedFromPlayers (playersIds = []) {
  		let normalized = playersIds.map(element => { return element.id });
  		let query = { id: { $in: normalized } };
- 		let projection = { _id: 0, id: '' };
+ 		let projection = { id: '' };
 
  		// Поиск совпадений players ids с id получивших уведомление
  		let findedPlayersInReceived = await db.collection('received').find(query, projection).toArray();
@@ -84,6 +91,8 @@ const repository = {
  	},
 
  	async saveReceivedIds (ids = []) {
+ 		// db.collection('received').drop();
+ 		// await db.collection('received').createIndex({ id: 1 });
  		return await db.collection('received').insertMany(ids);
  	},
 
