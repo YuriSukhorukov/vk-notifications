@@ -4,15 +4,17 @@ let state = require('./modules/state');
 let logger = require('./modules/logger');
 let repository = require('./modules/repository');
 let TimeInterval = require('./modules/time-interval');
-const {port} = require('./config').app;
+const { port } = require('./config').app;
 const states = require('./config').states;
+
+const {
+	idsToTake, 
+	delayBetweenRequests, 
+	delayBetweenErrors } = require('./config').service;
 
 let app = express();
 
-let idsToTake = 100;
 let playersIds = [];
-let delayBetweenRequests = 350;
-let delayBetweenErrors = 1000;
  
 let sendingInterval = new TimeInterval(delayBetweenRequests, delayBetweenErrors);
 

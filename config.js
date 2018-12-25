@@ -2,6 +2,11 @@ const config = {
 	app: {
 		port: 3000
 	},
+	service: {
+		idsToTake: 100,
+		delayBetweenRequests: 350,
+		delayBetweenErrors: 1000
+	},
 	vk: {
 		notice: {
 			maxUsersIdsCount: 100,
