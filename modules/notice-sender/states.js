@@ -55,12 +55,12 @@ const processRequestState = {
 
 		if(state.status == statuses.SENDING){
 			await state.save({ status: statuses.SENDING, msg: context.message, offset: 0});
-			await context.setState(cleaningState);
+			context.setState(cleaningState);
 		}else if(state.status == statuses.ERROR){
-			await context.setState(connectionState);
+			context.setState(connectionState);
 		}else if(state.status == statuses.IDLE){
 			await state.save({ status: statuses.SENDING, msg: context.message, offset: 0});
-			await context.setState(connectionState);
+			context.setState(connectionState);
 		}
 
 		context.action();
