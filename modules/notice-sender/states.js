@@ -49,8 +49,6 @@ const connectionState = {
 
 const processRequestState = {
 	async action (context) {
-		console.log('---REQUEST---')
-
 		clearTimeout(timeoutID);
 		clearImmediate(immediateID);
 		
@@ -70,7 +68,6 @@ const processRequestState = {
 	}
 }
 
-
 // Состояние очистки списка получивших уведомление, переход в это 
 // состояние при запросе на новую рассылку
 const cleaningState = {
@@ -89,7 +86,6 @@ const cleaningState = {
 // с теми, что в коллекции получивших.
 const processingState = {
 	async action (context) {
-		// TODO вынести наверх
 		let playersCount = await repository.getPlayersIdsCount();
 		let delta = playersCount - state.offset;
 
@@ -113,24 +109,13 @@ const processingState = {
 		// если в загруженной части players id все находятся в списке 
 		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
 		if(playersIds.length == 0){
-			// clearTimeout(timeoutID);
-			// clearImmediate(immediateID);
-
-			console.log('===>>>');
 			await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake });
 			context.setState(processingState);
 			context.action();
 		}else{
-			// clearTimeout(timeoutID);
-			// clearImmediate(immediateID);
-
 			context.setState(sendingState);
 			context.action();
 		}
-
-
-		// context.setState(sendingState);
-		// context.action();
 	}
 }
 
@@ -143,44 +128,28 @@ const sendingState = {
 				(async()=>{
 					context.setState(processingState);
 					logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
-
-					// Отказ от сохранения plyaers ids в received с целью оптимизации
-					 repository.saveReceivedIds(response);
-					 state.save({ status: states.SENDING, msg: state.msg, offset: state.offset += idsToTake } );
+					repository.saveReceivedIds(response);
+					state.save({ status: states.SENDING, msg: state.msg, offset: state.offset += idsToTake } );
 					sendingInterval.fast();
 				})()
 			}).catch( err => {
-				// (async()=>{
 					if(err.message == 'Invalid data'){
 						context.setState(processingState);
 						logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-						 state.save({ status: state.status, msg: state.msg, offset: state.offset });
-
-						 repository.resetPlayersIdsCursor();
-						// await repository.skipPlayersIdsQuantity(state.offset);
-
-						console.log(state.offset);
+						state.save({ status: state.status, msg: state.msg, offset: state.offset });
+					 	repository.resetPlayersIdsCursor();
 						sendingInterval.slow();
 					}else if(err.message == 'Too frequently'){
 						context.setState(processingState);
-						console.log(state.offset);
-
-						 repository.resetPlayersIdsCursor();
-						// await repository.skipPlayersIdsQuantity(state.offset);
-
+						repository.resetPlayersIdsCursor();
 						logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 						sendingInterval.slow();
 					}else if(err.message == 'Server fatal error'){
 						context.setState(disconnectState);
-						console.log(state.offset);
-
-						 repository.resetPlayersIdsCursor();
-						// await repository.skipPlayersIdsQuantity(state.offset);
-
-						 state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
+						repository.resetPlayersIdsCursor();
+						state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
 						logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 					}
-				// })()
 			});
 
 		immediateID = setImmediate(() => {
@@ -188,6 +157,9 @@ const sendingState = {
 		})
 	}
 }
+
+let immediateID;
+let timeoutID;
 
 // Состояние завершения рассылки
 const endState = {

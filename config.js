@@ -4,7 +4,7 @@ const config = {
 	},
 	service: {
 		idsToTake: 100,
-		delayBetweenRequests: 350 /*350*/,
+		delayBetweenRequests: 350,
 		delayBetweenErrors: 1000,
 		cacheSize: 1000,
 	},
@@ -12,7 +12,7 @@ const config = {
 		notice: {
 			maxUsersIdsCount: 100,
 			maxMessageLength: 254,
-			maxRequestsRate: /*10000000*/ 3
+			maxRequestsRate: 3,
 		}
 	},
 	states: {
