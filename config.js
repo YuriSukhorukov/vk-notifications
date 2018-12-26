@@ -4,7 +4,7 @@ const config = {
 	},
 	service: {
 		idsToTake: 100,
-		delayBetweenRequests: /*0*/ 1350,
+		delayBetweenRequests: /*0*/ 350,
 		delayBetweenErrors: 1000
 	},
 	vk: {
