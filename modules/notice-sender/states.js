@@ -9,6 +9,7 @@ const {
 	delayBetweenRequests, 
 	delayBetweenErrors } = require('./../../config').service;
 
+let playersCount;
 let playersIds = [];
 let sendingInterval = new TimeInterval(delayBetweenRequests, delayBetweenErrors);
 
@@ -33,6 +34,8 @@ const connectionState = {
 	async action (context) {
 		await repository.connect();
 		await repository.skipPlayersIdsQuantity(state.offset);
+		
+		playersCount = await repository.getPlayersIdsCount();
 
 		if(state.status == statuses.SENDING){
 			context.setState(processingState);
@@ -72,7 +75,6 @@ const processRequestState = {
 // с теми, что в коллекции получивших.
 const processingState = {
 	async action (context) {
-		let playersCount = await repository.getPlayersIdsCount();
 		let delta = playersCount - state.offset;
 
 		if(delta <= 0){
@@ -89,7 +91,6 @@ const processingState = {
 		// удаление из списка id игроков тех id, которые получили уедомление
 		// можно выключить, все равно при сохранении состояния сохраняется
 		// offset коллекции players
-		// Отказ от поиска plyaers ids в received с целью оптимизации
 		await repository.subtractReceivedFromPlayers(playersIds);
 
 		// если в загруженной части players id все находятся в списке 
