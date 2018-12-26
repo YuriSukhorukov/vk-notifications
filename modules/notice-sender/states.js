@@ -17,7 +17,7 @@ const idleState = {
 }
 
 const initializeState = {
-	async action (context) /*sender -> context*/ {
+	async action (context) {
 		state.connect().then(() => {
 			state.load().then(res => {
 				context.setState(connectionState);
@@ -29,7 +29,6 @@ const initializeState = {
 	}
 }
 
-// Состяние подключения
 const connectionState = {
 	async action (context) {
 		await repository.connect();
@@ -68,19 +67,6 @@ const processRequestState = {
 	}
 }
 
-// Состояние очистки списка получивших уведомление, переход в это 
-// состояние при запросе на новую рассылку
-const cleaningState = {
-	async action (context) {
-		setImmediate(()=>{
-			repository.resetPlayersIdsCursor();
-			repository.clearReceivedIds();
-			context.setState(processingState);
-			context.action();
-		})
-	}
-}
-
 // Состояние работы с идентификаторами, получение части идентификаторов 
 // из players ids, проверка на конец коллекции, сравнение полученных id 
 // с теми, что в коллекции получивших.
@@ -111,11 +97,11 @@ const processingState = {
 		if(playersIds.length == 0){
 			await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake });
 			context.setState(processingState);
-			context.action();
 		}else{
 			context.setState(sendingState);
-			context.action();
 		}
+
+		context.action();
 	}
 }
 
@@ -125,7 +111,7 @@ const sendingState = {
 	async action (context) {
 		VK.sendNotification(playersIds, state.msg)
 			.then(response => {
-				(async()=>{
+				(async () => {
 					context.setState(processingState);
 					logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
 					repository.saveReceivedIds(response);
@@ -133,27 +119,27 @@ const sendingState = {
 					sendingInterval.fast();
 				})()
 			}).catch( err => {
-					if(err.message == 'Invalid data'){
-						context.setState(processingState);
-						logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-						state.save({ status: state.status, msg: state.msg, offset: state.offset });
-					 	repository.resetPlayersIdsCursor();
-						sendingInterval.slow();
-					}else if(err.message == 'Too frequently'){
-						context.setState(processingState);
-						repository.resetPlayersIdsCursor();
-						logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-						sendingInterval.slow();
-					}else if(err.message == 'Server fatal error'){
-						context.setState(disconnectState);
-						repository.resetPlayersIdsCursor();
-						state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
-						logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-					}
+				if(err.message == 'Invalid data'){
+					context.setState(processingState);
+					logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+					state.save({ status: state.status, msg: state.msg, offset: state.offset });
+				 	repository.resetPlayersIdsCursor();
+					sendingInterval.slow();
+				}else if(err.message == 'Too frequently'){
+					context.setState(processingState);
+					repository.resetPlayersIdsCursor();
+					logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+					sendingInterval.slow();
+				}else if(err.message == 'Server fatal error'){
+					context.setState(disconnectState);
+					repository.resetPlayersIdsCursor();
+					state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
+					logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+				}
 			});
 
 		immediateID = setImmediate(() => {
-		timeoutID = setTimeout(() => { clearTimeout(timeoutID); context.action(); }, sendingInterval.time);
+			timeoutID = setTimeout(() => { clearTimeout(timeoutID); context.action(); }, sendingInterval.time);
 		})
 	}
 }
@@ -168,6 +154,19 @@ const endState = {
 		await state.save({ status: states.IDLE, msg: '', offset: 0 });
 		context.setState(disconnectState);
 		context.action();
+	}
+}
+
+// Состояние очистки списка получивших уведомление, переход в это 
+// состояние при запросе на новую рассылку
+const cleaningState = {
+	async action (context) {
+		setImmediate(()=>{
+			repository.resetPlayersIdsCursor();
+			repository.clearReceivedIds();
+			context.setState(processingState);
+			context.action();
+		})
 	}
 }
 
