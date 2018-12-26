@@ -6,7 +6,10 @@ const config = {
 		idsToTake: 100,
 		delayBetweenRequests: 350,
 		delayBetweenErrors: 1000,
+	},
+	repository: {
 		cacheSize: 1000,
+		cacheMemory: 5242880,
 	},
 	vk: {
 		notice: {

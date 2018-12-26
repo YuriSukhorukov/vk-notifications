@@ -1,6 +1,6 @@
 const MongoClient = require('mongodb').MongoClient;
 const uri = require('./../config').mongo[process.env.NODE_ENV].uri;
-const cacheSize = require('./../config').service.cacheSize;
+const { cacheSize, cacheMemory } = require('./../config').repository;
 
 let db;
 let client;
@@ -15,10 +15,10 @@ const repository = {
 			MongoClient.connect(uri, { useNewUrlParser: true }, (err, cl)=>{
 				client = cl;
 				db = cl.db();
-				cursor = db.collection('players').find({}, { projection });
+				cursor = db.collection('players').find(query, { projection });
 				
 				db.collection('received').drop();
-				db.createCollection('received', { capped: true, size: 5242880, max: cacheSize });
+				db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
 				
 				res();
 			})
@@ -30,12 +30,12 @@ const repository = {
 	},
 
 	async resetPlayersIdsCursor () {
-		cursor = await db.collection('players').find({}, { projection });
+		cursor = await db.collection('players').find(query, { projection });
 	},
 
 	async clearReceivedIds () {
 		await db.collection('received').drop();
-		await db.createCollection('received', { capped: true, size: 5242880, max: cacheSize });
+		await db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
 	},
 
 	async getPlayersIdsCount () {
@@ -54,7 +54,7 @@ const repository = {
 	},
 
  	async subtractReceivedFromPlayers (playersIds = []) {
- 		let _cursor = await db.collection('received').find({}, { projection });
+ 		let _cursor = await db.collection('received').find(query, { projection });
 
 		while(await _cursor.hasNext()) {
 			let id = await _cursor.next();
