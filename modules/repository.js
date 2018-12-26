@@ -30,7 +30,7 @@ const repository = {
 		})
 	},
 
-	async skipPlayersIdsQuantity (offset) {
+	async skipPlayersIdsQuantity (offset = 0) {
 		return await cursor.skip(offset);
 	},
 
