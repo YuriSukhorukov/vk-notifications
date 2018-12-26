@@ -49,8 +49,11 @@ const connectionState = {
 
 const processRequestState = {
 	async action (context) {
-		clearTimeout(sendingState.timeoutID);
-		clearImmediate(sendingState.immediateID);
+		console.log('---REQUEST---')
+
+		clearTimeout(timeoutID);
+		clearImmediate(immediateID);
+		
 		state.save({ status: state.status, msg: context.message, offset: state.offset});
 
 		if(state.status == states.SENDING){
@@ -72,10 +75,12 @@ const processRequestState = {
 // состояние при запросе на новую рассылку
 const cleaningState = {
 	async action (context) {
-		await repository.resetPlayersIdsCursor();
-		await repository.clearReceivedIds();
-		context.setState(processingState);
-		context.action();
+		setImmediate(()=>{
+			repository.resetPlayersIdsCursor();
+			repository.clearReceivedIds();
+			context.setState(processingState);
+			context.action();
+		})
 	}
 }
 
@@ -103,48 +108,83 @@ const processingState = {
 		// можно выключить, все равно при сохранении состояния сохраняется
 		// offset коллекции players
 		// Отказ от поиска plyaers ids в received с целью оптимизации
-		// await repository.subtractReceivedFromPlayers(playersIds);
+		await repository.subtractReceivedFromPlayers(playersIds);
 
-		context.setState(sendingState);
-		context.action();
+		// если в загруженной части players id все находятся в списке 
+		// полуивших, остаемся в нынешнем состоянии, иначе переходим к рассылке
+		if(playersIds.length == 0){
+			// clearTimeout(timeoutID);
+			// clearImmediate(immediateID);
+
+			console.log('===>>>');
+			await state.save({ status: state.status, msg: state.msg, offset: state.offset += idsToTake });
+			context.setState(processingState);
+			context.action();
+		}else{
+			// clearTimeout(timeoutID);
+			// clearImmediate(immediateID);
+
+			context.setState(sendingState);
+			context.action();
+		}
+
+
+		// context.setState(sendingState);
+		// context.action();
 	}
 }
 
 // Состояние отправки, взаимоействие с методом-заглушкой сервиса vk, обработка 
 // исключений, сохранение текущего состояния, переход на следующую итерацию.
 const sendingState = {
-	immediateID: '',
-	timeoutID: '',
-
 	async action (context) {
 		VK.sendNotification(playersIds, state.msg)
 			.then(response => {
-				context.setState(processingState);
-				logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
+				(async()=>{
+					context.setState(processingState);
+					logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
 
-				// Отказ от сохранения plyaers ids в received с целью оптимизации
-				// await repository.saveReceivedIds(response);
-				state.save({ status: states.SENDING, msg: state.msg, offset: state.offset += idsToTake } );
-				sendingInterval.fast();
+					// Отказ от сохранения plyaers ids в received с целью оптимизации
+					 repository.saveReceivedIds(response);
+					 state.save({ status: states.SENDING, msg: state.msg, offset: state.offset += idsToTake } );
+					sendingInterval.fast();
+				})()
 			}).catch( err => {
-				if(err.message == 'Invalid data'){
-					context.setState(processingState);
-					logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-					state.save({ status: state.status, msg: state.msg, offset: state.offset });
-					sendingInterval.slow();
-				}else if(err.message == 'Too frequently'){
-					context.setState(processingState);
-					logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-					sendingInterval.slow();
-				}else if(err.message == 'Server fatal error'){
-					context.setState(disconnectState);
-					state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
-					logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-				}
+				// (async()=>{
+					if(err.message == 'Invalid data'){
+						context.setState(processingState);
+						logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+						 state.save({ status: state.status, msg: state.msg, offset: state.offset });
+
+						 repository.resetPlayersIdsCursor();
+						// await repository.skipPlayersIdsQuantity(state.offset);
+
+						console.log(state.offset);
+						sendingInterval.slow();
+					}else if(err.message == 'Too frequently'){
+						context.setState(processingState);
+						console.log(state.offset);
+
+						 repository.resetPlayersIdsCursor();
+						// await repository.skipPlayersIdsQuantity(state.offset);
+
+						logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+						sendingInterval.slow();
+					}else if(err.message == 'Server fatal error'){
+						context.setState(disconnectState);
+						console.log(state.offset);
+
+						 repository.resetPlayersIdsCursor();
+						// await repository.skipPlayersIdsQuantity(state.offset);
+
+						 state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
+						logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+					}
+				// })()
 			});
 
-		this.immediateID = setImmediate(()=>{
-			this.timeoutID = setTimeout(()=>{ clearTimeout(this.timeoutID); context.action(); }, sendingInterval.time);
+		immediateID = setImmediate(() => {
+		timeoutID = setTimeout(() => { clearTimeout(timeoutID); context.action(); }, sendingInterval.time);
 		})
 	}
 }

@@ -4,8 +4,9 @@ const config = {
 	},
 	service: {
 		idsToTake: 100,
-		delayBetweenRequests: /*0*/ 350,
-		delayBetweenErrors: 1000
+		delayBetweenRequests: 350 /*350*/,
+		delayBetweenErrors: 1000,
+		cacheSize: 1000,
 	},
 	vk: {
 		notice: {

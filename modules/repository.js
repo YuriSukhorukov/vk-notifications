@@ -1,5 +1,6 @@
 const MongoClient = require('mongodb').MongoClient;
 const uri = require('./../config').mongo[process.env.NODE_ENV].uri;
+const cacheSize = require('./../config').service.cacheSize;
 
 // Для игроков и получивших сообщение используется одна БД, 
 // т.к. в ТЗ сказано что можно использовать дополнительные коллекции,
@@ -17,7 +18,6 @@ let cursor;
 let query = {};
 let projection = { _id: 0, id: 1 };
 let ids = [];
-let server;
 
 const repository = {
 	async connect () {
@@ -26,6 +26,8 @@ const repository = {
 				client = cl;
 				db = cl.db();
 				cursor = db.collection('players').find({}, { projection });
+				db.collection('received').drop();
+				db.createCollection('received', { capped : true, size : 5242880, max : cacheSize });
 				res();
 			})
 		})
@@ -36,14 +38,15 @@ const repository = {
 	},
 
 	async resetPlayersIdsCursor () {
-		// return await cursor.rewind();
-		// await cursor.close();
 		cursor = await db.collection('players').find({}, { projection });
 	},
 
 	async clearReceivedIds () {
-		// return await cursor.rewind();
-		return await db.collection('received').deleteMany();	
+		// if(await db.collection('received').isCapped()){
+			await db.collection('received').drop();
+			await db.createCollection('received', { capped : true, size : 5242880, max : cacheSize });
+		// }
+		// return await db.collection('received').deleteMany();	
 	},
 
 	async getPlayersIdsCount () {
@@ -51,7 +54,7 @@ const repository = {
 	},
 
 	async getReceivedIdsCount () {
-		return await db.collection('received').count();
+		// return await db.collection('received').count();
 	},
 
 	async getPlayersIdsFrom (limit = 0) {
@@ -66,22 +69,37 @@ const repository = {
 		  n++;
 		  ids.push(await cursor.next());
 		}
+
+		// db.collection('received').deleteMany();
+		
 		return ids;
 	},
 
  	async subtractReceivedFromPlayers (playersIds = []) {
- 		let normalized = playersIds.map(element => { return element.id });
- 		let query = { id: { $in: normalized } };
- 		let projection = { id: '' };
-
+ 		// let normalized = playersIds.map(element => { return element.id });
+ 		// let query = { id: { $in: normalized }  };
+ 		// let projection = { _id: 0, id: '' };
+		// console.log('...da!!!!!!!!!!!!!	qta')
  		// Поиск совпадений players ids с id получивших уведомление
- 		let findedPlayersInReceived = await db.collection('received').find(query, projection).toArray();
+ 		// let findedPlayersInReceived = await db.collection('received').find(query, projection).toArray();
 
- 		// Удаление из загруженной части players ids тех id, которые получили уведомление
- 		for(let i = 0; i < findedPlayersInReceived.length; i++){
+ 		let cr = await db.collection('received').find({}, { projection });
+ 		let n = 0;
+ 		let findedPlayersInReceived = [];
+
+ 		let count = await db.collection('received').count();
+ 		// console.log(await db.collection('received').isCapped());
+ 		console.log(count);
+
+		while(await cr.hasNext()) {
+		  // findedPlayersInReceived.push(await cr.next());
+
+			let id = await cr.next();
+			// console.log(id);
 			for(let j = 0; j < playersIds.length; j++){
-				if(findedPlayersInReceived[i].id == playersIds[j].id){
+				if(id.id === playersIds[j].id){
 					playersIds.splice(j, 1);
+					// console.log('< deleted')
 				}
 			}
 		}
@@ -90,9 +108,11 @@ const repository = {
  	},
 
  	async saveReceivedIds (ids = []) {
- 		// db.collection('received').drop();
- 		// await db.collection('received').createIndex({ id: 1 });
- 		return await db.collection('received').insertMany(ids);
+ 		try {
+ 			return await db.collection('received').insertMany(ids);	
+ 		} catch(e) {
+ 			console.log(e);
+ 		}
  	},
 
  	async disconnect () {
