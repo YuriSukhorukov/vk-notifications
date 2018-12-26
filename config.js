@@ -18,7 +18,7 @@ const config = {
 			maxRequestsRate: 3,
 		}
 	},
-	states: {
+	statuses: {
 		SENDING: 'SENDING',
 		IDLE: 'IDLE',
 		ERROR: 'ERROR',

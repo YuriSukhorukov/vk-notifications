@@ -7,7 +7,8 @@ let client;
 let cursor;
 let query = {};
 let projection = { _id: 0, id: 1 };
-let ids = [];
+
+let playersIds = [];
 
 const repository = {
 	async connect () {
@@ -17,8 +18,12 @@ const repository = {
 				db = cl.db();
 				cursor = db.collection('players').find(query, { projection });
 				
-				db.collection('received').drop();
-				db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
+				try {
+					db.collection('received').drop();
+					db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
+				} catch(e) {	
+					console.log(e.message);
+				}
 				
 				res();
 			})
@@ -34,8 +39,12 @@ const repository = {
 	},
 
 	async clearReceivedIds () {
-		await db.collection('received').drop();
-		await db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
+		try {
+			await	db.collection('received').drop();
+			await db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
+		} catch(e) {	
+			console.log(e.message);
+		}
 	},
 
 	async getPlayersIdsCount () {
@@ -44,13 +53,13 @@ const repository = {
 
 	async getPlayersIdsFrom (limit = 0) {
 		let n = 0;
-		ids.splice(0);
+		playersIds.splice(0);
 		while(await cursor.hasNext() && n < limit) {
 		  n++;
-		  ids.push(await cursor.next());
+		  playersIds.push(await cursor.next());
 		}
 		
-		return ids;
+		return playersIds;
 	},
 
  	async subtractReceivedFromPlayers (playersIds = []) {

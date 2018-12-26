@@ -3,7 +3,7 @@ const state = require('./../state');
 const logger = require('./../logger');
 const repository = require('./../repository');
 const TimeInterval = require('./../time-interval');
-const states = require('./../../config').states;
+const statuses = require('./../../config').statuses;
 const {
 	idsToTake, 
 	delayBetweenRequests, 
@@ -23,7 +23,7 @@ const initializeState = {
 				context.setState(connectionState);
 				context.action();
 			}).catch(err => {
-				state.save({ status: states.IDLE, msg: '', offset: 0 });
+				state.save({ status: statuses.IDLE, msg: '', offset: 0 });
 			})
 		});
 	}
@@ -34,11 +34,11 @@ const connectionState = {
 		await repository.connect();
 		await repository.skipPlayersIdsQuantity(state.offset);
 
-		if(state.status == states.SENDING){
+		if(state.status == statuses.SENDING){
 			context.setState(processingState);
-		}else if(state.status == states.ERROR){
+		}else if(state.status == statuses.ERROR){
 			context.setState(processingState);
-		}else if(state.status == states.IDLE){
+		}else if(state.status == statuses.IDLE){
 			context.setState(idleState);
 		}
 
@@ -53,13 +53,13 @@ const processRequestState = {
 		
 		state.save({ status: state.status, msg: context.message, offset: state.offset});
 
-		if(state.status == states.SENDING){
-			await state.save({ status: states.SENDING, msg: context.message, offset: 0});
+		if(state.status == statuses.SENDING){
+			await state.save({ status: statuses.SENDING, msg: context.message, offset: 0});
 			await context.setState(cleaningState);
-		}else if(state.status == states.ERROR){
+		}else if(state.status == statuses.ERROR){
 			await context.setState(connectionState);
-		}else if(state.status == states.IDLE){
-			await state.save({ status: states.SENDING, msg: context.message, offset: 0});
+		}else if(state.status == statuses.IDLE){
+			await state.save({ status: statuses.SENDING, msg: context.message, offset: 0});
 			await context.setState(connectionState);
 		}
 
@@ -115,7 +115,7 @@ const sendingState = {
 					context.setState(processingState);
 					logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
 					repository.saveReceivedIds(response);
-					state.save({ status: states.SENDING, msg: state.msg, offset: state.offset += idsToTake } );
+					state.save({ status: statuses.SENDING, msg: state.msg, offset: state.offset += idsToTake } );
 					sendingInterval.fast();
 				})()
 			}).catch( err => {
@@ -133,7 +133,7 @@ const sendingState = {
 				}else if(err.message == 'Server fatal error'){
 					context.setState(disconnectState);
 					repository.resetPlayersIdsCursor();
-					state.save({ status: states.ERROR, msg: state.msg, offset: state.offset });
+					state.save({ status: statuses.ERROR, msg: state.msg, offset: state.offset });
 					logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
 				}
 			});
@@ -151,7 +151,7 @@ let timeoutID;
 const endState = {
 	async action (context) {
 		logger.info(`Notification sending complete`);
-		await state.save({ status: states.IDLE, msg: '', offset: 0 });
+		await state.save({ status: statuses.IDLE, msg: '', offset: 0 });
 		context.setState(disconnectState);
 		context.action();
 	}
@@ -176,7 +176,7 @@ const disconnectState = {
 	}
 }
 
-const st = {
+const states = {
 	idleState,
 	initializeState,
 	processRequestState,
@@ -187,4 +187,4 @@ const st = {
 	sendingState,
 }
 
-module.exports = st;
+module.exports = states;
