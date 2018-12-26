@@ -1,6 +1,6 @@
 let express = require('express');
 let logger = require('./modules/logger');
-const sender = require('./modules/notice-sender/notice-sender');
+const sender = require('./modules/notice-sender/index');
 const { port } = require('./config').app;
 
 let app = express();
