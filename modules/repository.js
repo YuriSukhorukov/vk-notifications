@@ -66,9 +66,9 @@ const repository = {
  		let _cursor = await db.collection('received').find(query, { projection });
 
 		while(await _cursor.hasNext()) {
-			let id = await _cursor.next();
+			let _received = await _cursor.next();
 			for(let i = 0; i < playersIds.length; i++){
-				if(id.id === playersIds[i].id){
+				if(_received.id === playersIds[i].id){
 					playersIds.splice(i, 1);
 				}
 			}
