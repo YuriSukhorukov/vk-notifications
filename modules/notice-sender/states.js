@@ -33,6 +33,7 @@ const initializeState = {
 const connectionState = {
 	async action (context) {
 		await repository.connect();
+		await repository.createReceivedCache();
 		await repository.skipPlayersIdsQuantity(state.offset);
 		
 		playersCount = await repository.getPlayersIdsCount();
@@ -45,7 +46,7 @@ const connectionState = {
 			context.setState(idleState);
 		}
 
-		context.action();
+		await context.action();
 	}
 }
 
@@ -66,7 +67,7 @@ const processRequestState = {
 			context.setState(connectionState);
 		}
 
-		context.action();
+		await context.action();
 	}
 }
 
@@ -79,7 +80,7 @@ const processingState = {
 
 		if(delta <= 0){
 			context.setState(endState);
-			context.action();
+			await context.action();
 			return;
 		}
 
@@ -102,7 +103,7 @@ const processingState = {
 			context.setState(sendingState);
 		}
 
-		context.action();
+		await context.action();
 	}
 }
 
@@ -115,33 +116,42 @@ const sendingState = {
 				(async () => {
 					context.setState(processingState);
 					logger.info(`Sending successful ${ state.msg } to ${ JSON.stringify(response) }`);
-					repository.saveReceivedIds(response);
-					state.save({ status: statuses.SENDING, msg: state.msg, offset: state.offset += idsToTake } );
 					sendingInterval.fast();
+					await repository.saveInReceivedCache(response);
+					await state.save({ status: statuses.SENDING, msg: state.msg, offset: state.offset += idsToTake } );
+					
+					immediateID = setImmediate(() => {
+						timeoutID = setTimeout(() => { clearTimeout(timeoutID); context.action(); }, sendingInterval.time);
+					});
 				})()
 			}).catch( err => {
-				if(err.message == 'Invalid data'){
-					context.setState(processingState);
-					logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-					state.save({ status: state.status, msg: state.msg, offset: state.offset });
-				 	repository.resetPlayersIdsCursor();
-					sendingInterval.slow();
-				}else if(err.message == 'Too frequently'){
-					context.setState(processingState);
-					repository.resetPlayersIdsCursor();
-					logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-					sendingInterval.slow();
-				}else if(err.message == 'Server fatal error'){
-					context.setState(disconnectState);
-					repository.resetPlayersIdsCursor();
-					state.save({ status: statuses.ERROR, msg: state.msg, offset: state.offset });
-					logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
-				}
-			});
+				(async () => {
+					clearTimeout(timeoutID);
+					clearImmediate(immediateID);
+					await repository.resetPlayersIdsCursor();
+					await repository.skipPlayersIdsQuantity(state.offset);
 
-		immediateID = setImmediate(() => {
-			timeoutID = setTimeout(() => { clearTimeout(timeoutID); context.action(); }, sendingInterval.time);
-		})
+					if(err.message == 'Invalid data'){
+						context.setState(processingState);
+						logger.error(`Invalid data, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+						await state.save({ status: state.status, msg: state.msg, offset: state.offset });
+						sendingInterval.slow();
+					}else if(err.message == 'Too frequently'){
+						context.setState(processingState);
+						await state.save({ status: state.status, msg: state.msg, offset: state.offset });
+						logger.error(`Too frequently, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+						sendingInterval.slow();
+					}else if(err.message == 'Server fatal error'){
+						context.setState(disconnectState);
+						await state.save({ status: statuses.ERROR, msg: state.msg, offset: state.offset });
+						logger.error(`Server fatal error, failed send ${ state.msg } to : ${ JSON.stringify(playersIds) }`);
+					}
+
+					immediateID = setImmediate(() => {
+						timeoutID = setTimeout(() => { clearTimeout(timeoutID); context.action(); }, sendingInterval.time);
+					});
+				})()
+			});
 	}
 }
 
@@ -152,9 +162,9 @@ let timeoutID;
 const endState = {
 	async action (context) {
 		logger.info(`Notification sending complete`);
-		await state.save({ status: statuses.IDLE, msg: '', offset: 0 });
 		context.setState(disconnectState);
-		context.action();
+		await state.save({ status: statuses.IDLE, msg: '', offset: 0 });
+		await context.action();
 	}
 }
 
@@ -162,17 +172,17 @@ const endState = {
 // состояние при запросе на новую рассылку
 const cleaningState = {
 	async action (context) {
-		setImmediate(()=>{
-			repository.resetPlayersIdsCursor();
-			repository.clearReceivedIds();
-			context.setState(processingState);
-			context.action();
-		})
+		context.setState(processingState);
+	 	await repository.resetPlayersIdsCursor();
+	 	await repository.clearReceivedCache();
+	 	await repository.createReceivedCache();
+	 	await context.action();
 	}
 }
 
 const disconnectState = {
 	async action (context) {
+		await repository.clearReceivedCache();
 		await repository.disconnect();
 	}
 }

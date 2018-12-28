@@ -18,13 +18,6 @@ const repository = {
 				db = cl.db();
 				cursor = db.collection('players').find(query, { projection });
 				
-				try {
-					db.collection('received').drop();
-					db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
-				} catch(e) {	
-					console.log(e.message);
-				}
-				
 				res();
 			})
 		})
@@ -36,15 +29,6 @@ const repository = {
 
 	async resetPlayersIdsCursor () {
 		cursor = await db.collection('players').find(query, { projection });
-	},
-
-	async clearReceivedIds () {
-		try {
-			await	db.collection('received').drop();
-			await db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
-		} catch(e) {	
-			console.log(e.message);
-		}
 	},
 
 	async getPlayersIdsCount () {
@@ -78,9 +62,21 @@ const repository = {
  	},
 
  	// Сохранение в закрытую коллекцию фиксированного размера (кэш)
- 	async saveReceivedIds (ids = []) {
+ 	async saveInReceivedCache (ids = []) {
+ 		if(await db.collection('received').isCapped() === false)
+ 			await db.runCommand({ convertToCapped: 'received', size: cacheSize });
+
  		return await db.collection('received').insertMany(ids);
  	},
+
+ 	async createReceivedCache () {
+		await db.createCollection('received', { capped: true, size: cacheMemory, max: cacheSize });
+	},
+
+	async clearReceivedCache () {
+		if(await db.collection('received').count() > 0)
+			await db.collection('received').drop();
+	},
 
  	async disconnect () {
  		await cursor.close();
